@@ -2,7 +2,6 @@ import numpy as np
 import ase, ase.io
 import os, argparse
 from ctypes import *
-import soaplite
 import pathlib
 
 def _format_ase2clusgeo(obj, all_atomtypes=[]):
@@ -35,28 +34,6 @@ def _format_ase2clusgeo(obj, all_atomtypes=[]):
     atomtype_lst
     Apos = np.concatenate(pos_lst).ravel()
     return Apos, typeNs, Ntypes, atomtype_lst, totalAN
-
-def _get_supercell(obj, rCut=5.0):
-    rCutHard = rCut + 5; # Giving extra space for hard cutOff
-    """ Takes atoms object (with a defined cell) and a radial cutoff.
-    Returns a supercell centered around the original cell
-    generously extended to contain all spheres with the given radial
-    cutoff centered around the original atoms.
-    """
-
-    xyz_arr = np.abs(np.diag(obj.get_cell()))
-    cell_images = np.ceil(rCutHard/xyz_arr)
-    nx = int(cell_images[0])
-    ny = int(cell_images[1])
-    nz = int(cell_images[2])
-
-    suce = obj * (1 + 2*nx, 1+ 2*ny,1+2*nz)
-    shift = obj.get_cell()
-
-    shifted_suce = suce.copy()
-    shifted_suce.translate(-shift[0]*nx -shift[1]*ny - shift[1]*nz)
-
-    return suce
 
 def get_surface_atoms(obj, bubblesize = 2.5):
     """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.

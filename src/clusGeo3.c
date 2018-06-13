@@ -34,10 +34,10 @@ double findMax(double* x, int size){
 
 }
 //-----------------------------------------------------------
-int findSurf(double* x, double* y, double* z, int* surfAtoms,  int size);
-int findSurf(double* x, double* y, double* z, int* surfAtoms,  int size){
+int findSurf(double* x, double* y, double* z, int* surfAtoms,  int size, double bubblesize);
+int findSurf(double* x, double* y, double* z, int* surfAtoms,  int size, double bubblesize){
 
-  double vacuumRad = 2.5*2.5;
+  double vacuumRad = bubblesize * bubblesize;
   int gridSize = 100;
 
   double xMin = findMin(x,size); double xMax = findMax(x,size);
@@ -86,11 +86,10 @@ int findSurf(double* x, double* y, double* z, int* surfAtoms,  int size){
 }
 //-----------------------------------------------------------
 //-----------------------------------------------------------
-void getEta1(double* surfH1, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size);
-void getEta1(double* surfH1, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size){
+void getEta1(double* surfH1, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size, double distH);
+void getEta1(double* surfH1, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size, double distH){
   int gridT = 100;
   double distBuf;
-  double distH = 1.5;
   double* newX = (double*) malloc(sizeof(double)*gridT*gridT);
   double* newY = (double*) malloc(sizeof(double)*gridT*gridT);
   double* newZ = (double*) malloc(sizeof(double)*gridT);
@@ -162,10 +161,9 @@ void getEta1(double* surfH1, double* x,double* y, double* z, int* surfAtoms, int
 }
 //-----------------------------------------------------------
 //-----------------------------------------------------------
-int getEta2(double* surfH2, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size);
-int getEta2(double* surfH2, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size){
+int getEta2(double* surfH2, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size, double distH);
+int getEta2(double* surfH2, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size, double distH){
 
-  double distH = 1.8;
   int flag;
   int gridT = 100;
   double newS;
@@ -247,10 +245,9 @@ int getEta2(double* surfH2, double* x,double* y, double* z, int* surfAtoms, int 
 return NEta2;
 }
 //-----------------------------------------------------------
-int getEta3(double* surfH3, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size);
-int getEta3(double* surfH3, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size){
+int getEta3(double* surfH3, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size, double distH);
+int getEta3(double* surfH3, double* x,double* y, double* z, int* surfAtoms, int surfNum, int size, double distH){
 
-  double distH = 1.8;
   int flag;
   int gridT = 200;
   double newS;
@@ -340,8 +337,8 @@ int getEta3(double* surfH3, double* x,double* y, double* z, int* surfAtoms, int 
   return NEta3;
 }
 //-----------------------------------------------------------
-int getNewHPos(double* xH,double* yH, double* zH,double* x,double* y, double* z, int* types, int* typeNs);
-int getNewHPos(double* xH,double* yH, double* zH,double* x,double* y, double* z, int* types, int* typeNs){
+int x2_to_x(double* xH,double* yH, double* zH,double* x,double* y, double* z, int* types, int* typeNs, double bondlength);
+int x2_to_x(double* xH,double* yH, double* zH,double* x,double* y, double* z, int* types, int* typeNs, double bondlength){
   double dist2, xD, yD, zD;
   int flag, count = 0;
   if(types[0]==1){
@@ -350,7 +347,7 @@ int getNewHPos(double* xH,double* yH, double* zH,double* x,double* y, double* z,
       for(int j = i + 1; j < typeNs[0]; j++){
         xD = x[i] - x[j]; yD = y[i] - y[j]; zD = z[i] - z[j];
         dist2 = xD*xD + yD*yD + zD*zD;
-        if(dist2 < 1.0){
+        if(dist2 < bondlength*bondlength){
 //          xH[count] = x[i] + xD*0.5; 
 //          yH[count] = y[i] + yD*0.5; 
 //          zH[count] = z[i] + zD*0.5; 

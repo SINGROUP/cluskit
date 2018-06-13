@@ -58,8 +58,8 @@ def _get_supercell(obj, rCut=5.0):
 
     return suce
 
-def get_surface_atoms(obj):
-    """Takes an ASE atoms object.
+def get_surface_atoms(obj, bubblesize = 2.5):
+    """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
     Returns an array of indices of surface atoms.
     """
     # get clusgeo internal format for c-code
@@ -70,6 +70,8 @@ def get_surface_atoms(obj):
 
     # convert int to c_int
     totalAN = c_int(py_totalAN)
+    # convert double to c_double
+    bubblesize = c_double(float(bubblesize))
     #convert int array to c_int array
     surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
 
@@ -80,20 +82,20 @@ def get_surface_atoms(obj):
 
     path_to_so = os.path.dirname(os.path.abspath(__file__))
 
-    libclusgeo = CDLL(path_to_so + '/libclusgeo3')
-    libclusgeo.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int]
+    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
+    libclusgeo.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
     libclusgeo.findSurf.restype = c_int
 
-    Nsurf = libclusgeo.findSurf(x, y, z, surfAtoms, totalAN)
+    Nsurf = libclusgeo.findSurf(x, y, z, surfAtoms, totalAN, bubblesize)
 
     py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
     py_surfAtoms = py_surfAtoms[:Nsurf]
 
     return py_surfAtoms
 
-def get_top_sites(obj, surfatoms):
-    """Takes an ASE atoms object and an array of surface atom indices as input
-    Returns a 2D-array of top site positions.
+def get_top_sites(obj, surfatoms, distance=1.5):
+    """Takes an ASE atoms object, an array of surface atom indices and a distance as input
+    Returns a 2D-array of top site positions with the defined distance from the surface.
     """
     # get clusgeo internal format for c-code
     py_totalAN = len(obj)
@@ -106,6 +108,8 @@ def get_top_sites(obj, surfatoms):
     # convert int to c_int
     totalAN = c_int(py_totalAN)
     Nsurf = c_int(py_Nsurf)
+    # convert double to c_double
+    distance = c_double(float(distance))
 
     #convert int array to c_int array
     surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
@@ -119,10 +123,10 @@ def get_top_sites(obj, surfatoms):
 
     path_to_so = os.path.dirname(os.path.abspath(__file__))
 
-    libclusgeo = CDLL(path_to_so + '/libclusgeo3')
-    libclusgeo.getEta1.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int]
+    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
+    libclusgeo.getEta1.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
 
-    libclusgeo.getEta1(surfH, x, y, z, surfAtoms, Nsurf, totalAN)
+    libclusgeo.getEta1(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
 
     py_surfH = np.ctypeslib.as_array( surfH, shape=(py_Nsurf*3))
     py_surfH = py_surfH.reshape((py_Nsurf,3))
@@ -130,9 +134,9 @@ def get_top_sites(obj, surfatoms):
     return py_surfH
 
 
-def get_edge_sites(obj, surfatoms):
-    """Takes an ASE atoms object and an array of surface atom indices as input
-    Returns a 2D-array of top site positions.
+def get_edge_sites(obj, surfatoms, distance = 1.8):
+    """Takes an ASE atoms object,an array of surface atom indices and a distance as input
+    Returns a 2D-array of top site positions with the defined distance from the surface atoms.
     """
     # get clusgeo internal format for c-code
     py_totalAN = len(obj)
@@ -148,6 +152,8 @@ def get_edge_sites(obj, surfatoms):
 
     #convert int array to c_int array
     surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+    # convert double to c_double
+    distance = c_double(float(distance))
 
     # convert to c_double arrays
     x = (c_double * py_totalAN)(*py_x)
@@ -158,10 +164,11 @@ def get_edge_sites(obj, surfatoms):
 
     path_to_so = os.path.dirname(os.path.abspath(__file__))
 
-    libclusgeo = CDLL(path_to_so + '/libclusgeo3')
-    libclusgeo.getEta2.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int]
+    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
+    libclusgeo.getEta2.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), 
+        POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
 
-    Nedge = libclusgeo.getEta2(surfH, x, y, z, surfAtoms, Nsurf, totalAN)
+    Nedge = libclusgeo.getEta2(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
 
     py_surfH = np.ctypeslib.as_array( surfH, shape=(py_Nsurf*3* py_Nsurf))
     py_surfH = py_surfH.reshape((py_Nsurf*py_Nsurf,3))
@@ -169,9 +176,9 @@ def get_edge_sites(obj, surfatoms):
 
     return py_surfH
 
-def get_hollow_sites(obj, surfatoms):
-    """Takes an ASE atoms object and an array of surface atom indices as input
-    Returns a 2D-array of top site positions.
+def get_hollow_sites(obj, surfatoms, distance= 1.8):
+    """Takes an ASE atoms object, an array of surface atom indices and a distance as input
+    Returns a 2D-array of top site positions with the defined distance from the surface atoms.
     """
     # get clusgeo internal format for c-code
     py_totalAN = len(obj)
@@ -187,6 +194,8 @@ def get_hollow_sites(obj, surfatoms):
 
     #convert int array to c_int array
     surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+    # convert double to c_double
+    distance = c_double(float(distance))
 
     # convert to c_double arrays
     x = (c_double * py_totalAN)(*py_x)
@@ -197,16 +206,70 @@ def get_hollow_sites(obj, surfatoms):
 
     path_to_so = os.path.dirname(os.path.abspath(__file__))
 
-    libclusgeo = CDLL(path_to_so + '/libclusgeo3')
-    libclusgeo.getEta3.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int]
+    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
+    libclusgeo.getEta3.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), 
+        POINTER (c_int), c_int, c_int, c_double]
 
-    Nhollow = libclusgeo.getEta3(surfH, x, y, z, surfAtoms, Nsurf, totalAN)
+    Nhollow = libclusgeo.getEta3(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
 
     py_surfH = np.ctypeslib.as_array( surfH, shape=(py_Nsurf*3* py_Nsurf))
     py_surfH = py_surfH.reshape((py_Nsurf*py_Nsurf,3))
     py_surfH = py_surfH[:Nhollow] 
 
     return py_surfH
+
+
+def x2_to_x(pos, bondlength):
+    """Takes a 2D-array of adsorbed species positions and a bondlength as input.
+    Returns adsorbed species positions where X2 molecules (distance lower than bondlength) are replaced by X atoms
+    """
+    py_totalAN = pos.shape[0]
+    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+    updated_pos = np.zeros(pos.shape)
+    py_x_new, py_y_new, py_z_new, = updated_pos[:,0], updated_pos[:,1], updated_pos[:,2]
+
+    # currently only implemented for single type adsorbate
+    atomtype_lst = [1] 
+    py_typeNs =  [py_totalAN]
+
+    # convert int to c_int
+    totalAN = c_int(py_totalAN)
+    # convert double to c_double
+    bondlength = c_double(float(bondlength))
+
+    #convert int array to c_int array
+    types = (c_int * len(atomtype_lst))(*atomtype_lst)
+    typeNs = (c_int * len(py_typeNs))(*py_typeNs)
+
+    # convert to c_double arrays
+    x = (c_double * py_totalAN)(*py_x)
+    y = (c_double * py_totalAN)(*py_y)
+    z = (c_double * py_totalAN)(*py_z)
+
+    x_new = (c_double * py_totalAN)(*py_x_new)
+    y_new = (c_double * py_totalAN)(*py_y_new)
+    z_new = (c_double * py_totalAN)(*py_z_new)
+
+
+    path_to_so = os.path.dirname(os.path.abspath(__file__))
+    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
+    libclusgeo.x2_to_x.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double),  
+        POINTER (c_double), POINTER (c_double), POINTER (c_int), POINTER (c_int), c_double]
+    libclusgeo.x2_to_x.restype = c_int
+
+    updated_totalAN = libclusgeo.x2_to_x(x_new, y_new, z_new, x, y, z, types, typeNs, bondlength)
+
+    py_x_new = np.ctypeslib.as_array(x_new, shape=(py_totalAN))
+    py_y_new = np.ctypeslib.as_array(y_new, shape=(py_totalAN))
+    py_z_new = np.ctypeslib.as_array(z_new, shape=(py_totalAN))
+
+    updated_pos = np.array([py_x_new, py_y_new, py_z_new]).T
+
+    updated_pos = updated_pos[:updated_totalAN]
+    print(updated_totalAN)
+
+    return updated_pos
+
 
 
 def write_all_sites(atoms, structure_name = "ref", path = "./"):
@@ -264,21 +327,21 @@ def write_all_sites(atoms, structure_name = "ref", path = "./"):
 
 
 if __name__ == "__main__":
-    atoms = ase.io.read("h2o2.xyz")
-    atoms = ase.io.read("au40cu40.xyz")
-    """
+    #atoms = ase.io.read("h2o2.xyz")
+    atoms = ase.io.read("BEAUT/beaut6.xyz")
+    atoms = ase.io.read("tests/au40cu40.xyz")
     surfatoms = get_surface_atoms(atoms)
 
-    print(surfatoms, surfatoms.shape)
+    print("surface atoms:", surfatoms.shape)
     surfit = atoms[surfatoms]
-    ase.io.write("surface.xyz", surfit)
+    #ase.io.write("surface.xyz", surfit)
     print("done get surface atoms")
 
     topHxyz = get_top_sites(atoms, surfatoms)
     print(topHxyz.shape)
     topH = ase.Atoms('H'*len(topHxyz), topHxyz)
     structure_topH = atoms + topH
-    ase.io.write("structure_topH.xyz", structure_topH)
+    #ase.io.write("structure_topH.xyz", structure_topH)
     print("done get top sites")
 
 
@@ -288,7 +351,7 @@ if __name__ == "__main__":
     #np.savetxt("edgeHxyz.txt",edgeHxyz)
     edgeH = ase.Atoms('H'*len(edgeHxyz), edgeHxyz)
     structure_edgeH = atoms + edgeH
-    ase.io.write("structure_edgeH.xyz", structure_edgeH)
+    #ase.io.write("structure_edgeH.xyz", structure_edgeH)
     print("done get edge sites")
 
 
@@ -298,11 +361,16 @@ if __name__ == "__main__":
     #np.savetxt("edgeHxyz.txt",edgeHxyz)
     hollowH = ase.Atoms('H'*len(hollowHxyz), hollowHxyz)
     structure_hollowH = atoms + hollowH
-    ase.io.write("structure_hollowH.xyz", structure_hollowH)
+    #ase.io.write("structure_hollowH.xyz", structure_hollowH)
     print("done get hollow sites")
-    """
+    
+    #write_all_sites(atoms, "au40cu40")
+    surfatoms = get_surface_atoms(atoms)
+    topHxyz = get_top_sites(atoms, surfatoms)
+    updated_pos = x2_to_x(topHxyz, 3.0)
 
-    write_all_sites(atoms, "au40cu40")
+    print("Before x2 elimination", topHxyz.shape)
+    print("After x2 elimination", updated_pos.shape)
 
 
 

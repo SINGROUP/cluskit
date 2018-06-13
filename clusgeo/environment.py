@@ -2,7 +2,6 @@ import numpy as np
 import ase, ase.io
 import os, argparse
 from ctypes import *
-import soaplite
 import pathlib
 import clusgeo.surface
 from scipy.spatial.distance import squareform, pdist

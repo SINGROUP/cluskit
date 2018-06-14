@@ -1,8 +1,13 @@
 import numpy as np 
 import ase, ase.io
-import os, argparse
+import os, argparse, glob
 from ctypes import *
 import pathlib
+
+_PATH_TO_CLUSGEO_SO = os.path.dirname(os.path.abspath(__file__))
+_CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libclusgeo3.*so*"]) )
+_LIBCLUSGEO = CDLL(_CLUSGEO_SOFILES[0])
+
 
 def _format_ase2clusgeo(obj, all_atomtypes=[]):
     """ Takes an ase Atoms object and returns numpy arrays and integers
@@ -57,13 +62,16 @@ def get_surface_atoms(obj, bubblesize = 2.5):
     y = (c_double * py_totalAN)(*py_y)
     z = (c_double * py_totalAN)(*py_z)
 
-    path_to_so = os.path.dirname(os.path.abspath(__file__))
+    #path_to_so = os.path.dirname(os.path.abspath(__file__))
+    #sofiles = glob.glob( "".join([ path_to_so, "/../lib/libclusgeo3.*so*"]) )
+    #libclusgeo = CDLL(sofiles[0])
+    #libclusgeo.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
+    #libclusgeo.findSurf.restype = c_int
+    _LIBCLUSGEO.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
+    _LIBCLUSGEO.findSurf.restype = c_int
 
-    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
-    libclusgeo.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
-    libclusgeo.findSurf.restype = c_int
-
-    Nsurf = libclusgeo.findSurf(x, y, z, surfAtoms, totalAN, bubblesize)
+    #Nsurf = libclusgeo.findSurf(x, y, z, surfAtoms, totalAN, bubblesize)
+    Nsurf = _LIBCLUSGEO.findSurf(x, y, z, surfAtoms, totalAN, bubblesize)
 
     py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
     py_surfAtoms = py_surfAtoms[:Nsurf]
@@ -98,12 +106,9 @@ def get_top_sites(obj, surfatoms, distance=1.5):
 
     surfH = (c_double*(py_Nsurf * 3  ) )()
 
-    path_to_so = os.path.dirname(os.path.abspath(__file__))
+    _LIBCLUSGEO.getEta1.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
 
-    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
-    libclusgeo.getEta1.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
-
-    libclusgeo.getEta1(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+    _LIBCLUSGEO.getEta1(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
 
     py_surfH = np.ctypeslib.as_array( surfH, shape=(py_Nsurf*3))
     py_surfH = py_surfH.reshape((py_Nsurf,3))
@@ -139,13 +144,11 @@ def get_edge_sites(obj, surfatoms, distance = 1.8):
 
     surfH = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
 
-    path_to_so = os.path.dirname(os.path.abspath(__file__))
 
-    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
-    libclusgeo.getEta2.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), 
+    _LIBCLUSGEO.getEta2.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), 
         POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
 
-    Nedge = libclusgeo.getEta2(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+    Nedge = _LIBCLUSGEO.getEta2(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
 
     py_surfH = np.ctypeslib.as_array( surfH, shape=(py_Nsurf*3* py_Nsurf))
     py_surfH = py_surfH.reshape((py_Nsurf*py_Nsurf,3))
@@ -181,13 +184,11 @@ def get_hollow_sites(obj, surfatoms, distance= 1.8):
 
     surfH = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
 
-    path_to_so = os.path.dirname(os.path.abspath(__file__))
 
-    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
-    libclusgeo.getEta3.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), 
+    _LIBCLUSGEO.getEta3.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), 
         POINTER (c_int), c_int, c_int, c_double]
 
-    Nhollow = libclusgeo.getEta3(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+    Nhollow = _LIBCLUSGEO.getEta3(surfH, x, y, z, surfAtoms, Nsurf, totalAN, distance)
 
     py_surfH = np.ctypeslib.as_array( surfH, shape=(py_Nsurf*3* py_Nsurf))
     py_surfH = py_surfH.reshape((py_Nsurf*py_Nsurf,3))
@@ -228,13 +229,11 @@ def x2_to_x(pos, bondlength):
     z_new = (c_double * py_totalAN)(*py_z_new)
 
 
-    path_to_so = os.path.dirname(os.path.abspath(__file__))
-    libclusgeo = CDLL(path_to_so + '/../lib/libclusgeo3')
-    libclusgeo.x2_to_x.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double),  
+    _LIBCLUSGEO.x2_to_x.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double),  
         POINTER (c_double), POINTER (c_double), POINTER (c_int), POINTER (c_int), c_double]
-    libclusgeo.x2_to_x.restype = c_int
+    _LIBCLUSGEO.x2_to_x.restype = c_int
 
-    updated_totalAN = libclusgeo.x2_to_x(x_new, y_new, z_new, x, y, z, types, typeNs, bondlength)
+    updated_totalAN = _LIBCLUSGEO.x2_to_x(x_new, y_new, z_new, x, y, z, types, typeNs, bondlength)
 
     py_x_new = np.ctypeslib.as_array(x_new, shape=(py_totalAN))
     py_y_new = np.ctypeslib.as_array(y_new, shape=(py_totalAN))

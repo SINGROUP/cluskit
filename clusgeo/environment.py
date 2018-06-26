@@ -3,8 +3,10 @@ import ase, ase.io
 import os, argparse
 from ctypes import *
 import pathlib
+import soaplite
 import clusgeo.surface
 from scipy.spatial.distance import squareform, pdist
+
 
 def _fps(pts, K, greedy=False):
     dist_matrix = squareform(pdist(pts))
@@ -149,54 +151,3 @@ def rank_sites(soapmatrix, K = None, idx=[], greedy = False, is_safe = False):
     assert len(ranked_ids) == len(set(ranked_ids)), "Error! Double counting in FPS! Use is_safe = True." 
 
     return ranked_ids
-
-
-
-
-
-if __name__ == "__main__":
-
-    atoms = ase.io.read("tests/au40cu40.xyz")
-    atoms = ase.io.read("tests/Au-icosahedron-3.xyz")
-    #from ase.cluster.icosahedron import Icosahedron
-    #from ase.io import write
-
-    #atoms = Icosahedron('Au', noshells=3)
-    #write('tests/Au-icosahedron-3.xyz', atoms)
-
-    soapmatrix = get_soap_cluster(atoms, only_surface=False, bubblesize=2.5, NradBas=10, Lmax =9)
-    surfsoapmatrix = get_soap_cluster(atoms, only_surface=True, bubblesize=2.5, NradBas=10, Lmax =9)
-
-    print("soap cluster shape", soapmatrix.shape)
-
-    surfatoms = clusgeo.surface.get_surface_atoms(atoms)
-    sitepositions = clusgeo.surface.get_top_sites(atoms, surfatoms)
-    sitesoapmatrix = get_soap_sites(atoms, sitepositions, NradBas=10, Lmax =9)
-
-    print("soap sites shape", sitesoapmatrix.shape)
-
-    # fps ranking testing
-
-    soapmatrix = np.random.rand(5,10)
-    soapmatrix = np.vstack((soapmatrix,soapmatrix))
-    print(soapmatrix.shape)
-
-    ranked_ids = rank_sites(soapmatrix, K = None, idx=[], greedy = True, is_safe = True)
-
-
-
-    print(ranked_ids)
-    print("size of ranked ids:", len(ranked_ids), "set:", len(set(ranked_ids)))
-    assert len(ranked_ids) == len(set(ranked_ids)), "Error! Double counting in FPS!" 
-
-    # unique sites testing
-
-    unique_lst = get_unique_sites(sitesoapmatrix, idx=surfatoms)
-
-    unique_pos = sitepositions[unique_lst]
-    adsorbates = ase.Atoms('H' * len(unique_lst), unique_pos)
-    h_structure = atoms + adsorbates
-
-    #ase.io.write("uniqueH.xyz", h_structure)
-
-    print(unique_lst.shape)

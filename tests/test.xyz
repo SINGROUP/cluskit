@@ -1,5 +1,5 @@
 80
-Properties=species:S:1:pos:R:3:Z:I:1 i=T pbc="F F F"
+Properties=species:S:1:pos:R:3:Z:I:1 pbc="F F F" i=T
 Lr       5.31077455       0.12693819       7.02185122      103 
 Lr       4.94874208      -2.50133237       6.82907050      103 
 Lr       0.08610568       3.67688902       9.98139861      103 

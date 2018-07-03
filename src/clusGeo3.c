@@ -38,7 +38,7 @@ int findSurf(double* x, double* y, double* z, int* surfAtoms,  int size, double 
 int findSurf(double* x, double* y, double* z, int* surfAtoms,  int size, double bubblesize){
 
   double vacuumRad = bubblesize * bubblesize;
-  int gridSize = 100;
+  int gridSize = 300;
 
   double xMin = findMin(x,size); double xMax = findMax(x,size);
   double yMin = findMin(y,size); double yMax = findMax(y,size);
@@ -47,17 +47,17 @@ int findSurf(double* x, double* y, double* z, int* surfAtoms,  int size, double 
   int* surfAtomsBuff = (int*) malloc(sizeof(int)*gridSize*gridSize*gridSize);
   double rBuff2Double;  int marcher = 0;   int marcherSurf = 0;
 
-  double xPos = xMin - 3.5; double dx = (xMax - xMin + 7.0)/(double) gridSize;
-  double yPos = yMin - 3.5; double dy = (yMax - yMin + 7.0)/(double) gridSize;
-  double zPos = zMin - 3.5; double dz = (zMax - zMin + 7.0)/(double) gridSize;
+  double xPos = xMin - 10.5; double dx = (xMax - xMin + 21.0)/(double) gridSize;
+  double yPos = yMin - 10.5; double dy = (yMax - yMin + 21.0)/(double) gridSize;
+  double zPos = zMin - 10.5; double dz = (zMax - zMin + 21.0)/(double) gridSize;
   double xPosInit = xPos; double yPosInit = yPos; double zPosInit = zPos;
 
   int* isSurf = (int*) malloc(sizeof(int)*size);
   int maxAtomIndx;  double minVal;  int minAtomsI;
 
-  while( xPos < xMax + 3.5){ yPos = yPosInit;
-    while( yPos < yMax + 3.5){ zPos = zPosInit;
-      while( zPos < zMax + 3.5){ minVal = 10000000;
+  while( xPos < xMax + 10.5){ yPos = yPosInit;
+    while( yPos < yMax + 10.5){ zPos = zPosInit;
+      while( zPos < zMax + 10.5){ minVal = 10000000;
         for(int i = 0; i < size; i++){
           rBuff2Double =(xPos-x[i])*(xPos-x[i])+(yPos-y[i])*(yPos-y[i])+(zPos-z[i])*(zPos-z[i]);
           if(rBuff2Double < minVal ){
@@ -337,6 +337,29 @@ int getEta3(double* surfH3, double* x,double* y, double* z, int* surfAtoms, int 
   return NEta3;
 }
 //-----------------------------------------------------------
+int getNonSurf(int* nonSurf, int size, int surfSize, int* surfAtoms);
+int getNonSurf(int* nonSurf, int size, int surfSize, int* surfAtoms){
+
+  int count = 0;
+  int flag = 0;
+//  int* nonSurf = (int*) malloc(sizeof(int)*size);
+  for(int i = 0; i < size; i++){
+    flag = 0;
+    for(int j = 0; j < surfSize; j++){
+      if(surfAtoms[j] == i){
+        flag = 1;
+      }
+    }
+    if(flag == 0){
+     nonSurf[count] =  i; 
+     count++;
+    }
+  }
+
+  return count;
+
+}
+//-----------------------------------------------------------
 int x2_to_x(double* xH,double* yH, double* zH,double* x,double* y, double* z, int* types, int* typeNs, double bondlength);
 int x2_to_x(double* xH,double* yH, double* zH,double* x,double* y, double* z, int* types, int* typeNs, double bondlength){
   double dist2, xD, yD, zD;
@@ -366,3 +389,51 @@ int x2_to_x(double* xH,double* yH, double* zH,double* x,double* y, double* z, in
   return count;
 }
 //-----------------------------------------------------------
+// int ElimInOutH(double* xH,double* yH, double* zH, double* x,double* y, double* z, double outerLength, double innerLength, int size, int hSize, int bubblesize);
+// int ElimInOutH(double* xH,double* yH, double* zH, double* x,double* y, double* z, double outerLength, double innerLength, int size, int hSize, int bubblesize){
+//// xH, yH, zH will be replaced with surface hydrogens -> eliminates all hydrogen atoms but not too far away from the cluster, and not inside the cluster.
+//  int* surfAtoms = (int*) malloc(sizeof(int)*size);
+//  int* nonSurf = (int*) malloc(sizeof(int)*size);
+//  int surfNum = findSurf(x,y,z,surfAtoms,size,bubblesize);
+//  int nonSurfNum = getNonSurf(nonSurf, size, surfNum,surfAtoms);
+//  int flag = 0;
+//  int count = 0;
+//  double rSurfH,rNonSurfH,xd, yd, zd;
+//  double* xHNew = (double*) malloc(sizeof(double)*hSize);
+//  double* yHNew = (double*) malloc(sizeof(double)*hSize);
+//  double* zHNew = (double*) malloc(sizeof(double)*hSize);
+//
+//  for(int i = 0; i < hSize; i++){
+//    flag = 0;
+//    for(int j = 0; j < surfNum; j++){
+//      xd = x[surfAtoms[j]] - xH[i]; yd = y[surfAtoms[j]] - yH[i]; zd = z[surfAtoms[j]] - zH[i];
+//      rSurfH = xd*xd + yd*yd + zd*zd;
+//      for(int k = 0; k < nonSurfNum; k++){
+//        xd = x[nonSurf[k]] - xH[i]; yd = y[nonSurf[k]] - yH[i]; zd = z[nonSurf[k]] - zH[i];
+//        rNonSurfH = xd*xd + yd*yd + zd*zd;
+//        if(rNonSurfH < innerLength || rSurfH > outerLength){
+//          flag = 1;
+//        }
+//      }
+//    }
+//    if(flag == 0){
+//      xHNew[count] = xH[i];
+//      yHNew[count] = yH[i];
+//      zHNew[count] = zH[i];
+//      count++;
+//    }
+//  }
+//
+//  for(int i = 0; i < count; i++){
+//    xH[i] = xHNew[i];
+//    yH[i] = yHNew[i];
+//    zH[i] = zHNew[i];
+//   count++;
+//  }
+//
+//
+//  return count;
+//}
+//-----------------------------------------------------------
+
+

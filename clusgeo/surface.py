@@ -77,7 +77,49 @@ def get_surface_atoms(obj, bubblesize = 2.5):
     py_surfAtoms = py_surfAtoms[:Nsurf]
 
     return py_surfAtoms
+####### NEW 2018/Jun/26 - Aki########################################################
+def get_nonsurf_atoms(obj, bubblesize = 2.5):
+    """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
+    Returns an array of indices of surface atoms.
+    """
+    # get clusgeo internal format for c-code
+    py_totalAN = len(obj)
+    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+    py_nonsurfAtoms = np.zeros(py_totalAN, dtype=int) #++
+    pos = obj.get_positions()
+    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
 
+    # convert int to c_int
+    totalAN = c_int(py_totalAN)
+    # convert double to c_double
+    bubblesize = c_double(float(bubblesize))
+    #convert int array to c_int array
+    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+    nonSurf = (c_int * py_totalAN)(*py_nonsurfAtoms)
+
+    # convert to c_double arrays
+    x = (c_double * py_totalAN)(*py_x)
+    y = (c_double * py_totalAN)(*py_y)
+    z = (c_double * py_totalAN)(*py_z)
+
+    _LIBCLUSGEO.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
+    _LIBCLUSGEO.getNonSurf.argtypes = [POINTER (c_double), c_int, c_int, POINTER (c_double)]
+
+    _LIBCLUSGEO.findSurf.restype = c_int
+    _LIBCLUSGEO.getNonSurf.restype = c_int
+
+    Nsurf = _LIBCLUSGEO.findSurf(x, y, z, surfAtoms, totalAN, bubblesize) 
+    NnonSurf = _LIBCLUSGEO.getNonSurf(nonSurf, totalAN, Nsurf, surfAtoms) 
+    
+
+#    py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
+#    py_surfAtoms = py_surfAtoms[:Nsurf]
+    py_nonsurfAtoms = np.ctypeslib.as_array( nonSurf, shape=(py_totalAN))
+    py_surfAtoms = py_surfAtoms[:NnonSurf]
+
+    return py_nonsurfAtoms
+
+#################################################################################################
 def get_top_sites(obj, surfatoms, distance=1.5):
     """Takes an ASE atoms object, an array of surface atom indices and a distance as input
     Returns a 2D-array of top site positions with the defined distance from the surface.
@@ -347,6 +389,5 @@ if __name__ == "__main__":
 
     print("Before x2 elimination", topHxyz.shape)
     print("After x2 elimination", updated_pos.shape)
-
 
 

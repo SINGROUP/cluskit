@@ -10,7 +10,7 @@ extensions = [Extension("lib.libclusgeo3",
 if __name__=="__main__":
   setup(name="clusgeo",
       url="https://github.com/SINGROUP/SOAPLite",
-      version="3.0.1",
+      version="3.0.3",
       description=("CLUSter GEOmetry tool for surface chemistry."), author="Eiaki V. Morooka", author_email="eiaki.morooka@aalto.fi",
       packages = find_packages(),
       install_requires =["numpy",

@@ -11,8 +11,9 @@ import numpy as np
 atoms = ase.io.read("au40cu40.xyz")
 
 surfaceAtoms = clusgeo.surface.get_surface_atoms(atoms, bubblesize = 2.7)
-nonSurf = get_nonsurf_atoms(atoms, bubblesize = 2.5)
-
+nonSurf = clusgeo.surface.get_nonsurf_atoms(atoms, bubblesize = 2.5)
+print("non-surface atoms")
+print(nonSurf)
 
 atnum = atoms.get_atomic_numbers()
 atnum[surfaceAtoms] = 103

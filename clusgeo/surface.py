@@ -199,16 +199,14 @@ def get_edge_sites(obj, surfatoms, distance = 1.8):
 
     # check whether adsorbate is inside
     print(surfatoms)
-    print(py_total_AN)
-    full_ids = np.arange(py_total_AN)
+    print(py_totalAN)
+    full_ids = np.arange(py_totalAN)
     non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
-    min_dist_nonsurf_h = np.min(cdist(pos[nonsurfatoms], py_surfH), axis = 1)
-    min_dist_nonsurf_surf = np.min(cdist(pos[nonsurfatoms], pos[surfatoms]))
-    print("min_dist_nonsurf_surf", min_dist_nonsurf_surf)
-    print("min_dist_surf_h", min_dist_surf_h)
-    outside_surfH = py_surfH[min_dist_nonsurf_h < min_dist_nonsurf_surf]
+    min_dist_nonsurf_h = np.min(cdist(pos[non_surfatoms], py_surfH), axis = 0)
+    min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
+    outside_surfH = py_surfH[min_dist_nonsurf_h > min_dist_nonsurf_surf]
 
-    return py_surfH
+    return outside_surfH
 
 def get_hollow_sites(obj, surfatoms, distance= 1.8):
     """Takes an ASE atoms object, an array of surface atom indices and a distance as input
@@ -248,7 +246,14 @@ def get_hollow_sites(obj, surfatoms, distance= 1.8):
     py_surfH = py_surfH.reshape((py_Nsurf*py_Nsurf,3))
     py_surfH = py_surfH[:Nhollow] 
 
-    return py_surfH
+    # check whether adsorbate is inside
+    full_ids = np.arange(py_totalAN)
+    non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
+    min_dist_nonsurf_h = np.min(cdist(pos[non_surfatoms], py_surfH), axis = 0)
+    min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
+    outside_surfH = py_surfH[min_dist_nonsurf_h > min_dist_nonsurf_surf]
+
+    return outside_surfH
 
 
 def x2_to_x(pos, bondlength):

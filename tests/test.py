@@ -9,11 +9,12 @@ import ase
 import numpy as np
 
 atoms = ase.io.read("au40cu40.xyz")
+atoms = ase.io.read("pureSymFe4icos.xyz")
 
 surfaceAtoms = clusgeo.surface.get_surface_atoms(atoms, bubblesize = 2.7)
-nonSurf = clusgeo.surface.get_nonsurf_atoms(atoms, bubblesize = 2.5)
-print("non-surface atoms")
-print(nonSurf)
+#nonSurf = clusgeo.surface.get_nonsurf_atoms(atoms, bubblesize = 2.5)
+#print("non-surface atoms")
+#print(nonSurf)
 
 atnum = atoms.get_atomic_numbers()
 atnum[surfaceAtoms] = 103
@@ -24,6 +25,7 @@ ase.io.write("test.xyz", atoms)
 print(surfaceAtoms)
 atoms = ase.io.read("au40cu40.xyz")
 atoms = ase.io.read("Au-icosahedron-3.xyz")
+atoms = ase.io.read("pureSymFe4icos.xyz")
 
 soapmatrix = clusgeo.environment.get_soap_cluster(atoms, only_surface=False, bubblesize=2.5, NradBas=10, Lmax =9)
 surfsoapmatrix = clusgeo.environment.get_soap_cluster(atoms, only_surface=True, bubblesize=2.5, NradBas=10, Lmax =9)
@@ -34,6 +36,23 @@ sitepositions = clusgeo.surface.get_top_sites(atoms, surfatoms)
 sitesoapmatrix = clusgeo.environment.get_soap_sites(atoms, sitepositions, NradBas=10, Lmax =9)
 
 print("soap sites shape", sitesoapmatrix.shape)
+
+# bridge sites
+bridgesite_positions = clusgeo.surface.get_edge_sites(atoms, surfatoms)
+adsites = ase.Atoms(['H'] * bridgesite_positions.shape[0], positions = bridgesite_positions)
+
+bridge_cluster = atoms + adsites
+
+ase.io.write("bridge_cluster.xyz", bridge_cluster)
+
+# hollow sites
+hollowsite_positions = clusgeo.surface.get_hollow_sites(atoms, surfatoms)
+adsites = ase.Atoms(['H'] * hollowsite_positions.shape[0], positions = hollowsite_positions)
+
+hollow_cluster = atoms + adsites
+
+ase.io.write("hollow_cluster.xyz", hollow_cluster)
+
 
 # fps ranking testing
 

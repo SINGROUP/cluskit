@@ -3,6 +3,7 @@ import ase, ase.io
 import os, argparse, glob
 from ctypes import *
 import pathlib
+from scipy.spatial.distance import cdist
 
 _PATH_TO_CLUSGEO_SO = os.path.dirname(os.path.abspath(__file__))
 _CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libclusgeo3.*so*"]) )
@@ -195,6 +196,17 @@ def get_edge_sites(obj, surfatoms, distance = 1.8):
     py_surfH = np.ctypeslib.as_array( surfH, shape=(py_Nsurf*3* py_Nsurf))
     py_surfH = py_surfH.reshape((py_Nsurf*py_Nsurf,3))
     py_surfH = py_surfH[:Nedge] 
+
+    # check whether adsorbate is inside
+    print(surfatoms)
+    print(py_total_AN)
+    full_ids = np.arange(py_total_AN)
+    non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
+    min_dist_nonsurf_h = np.min(cdist(pos[nonsurfatoms], py_surfH), axis = 1)
+    min_dist_nonsurf_surf = np.min(cdist(pos[nonsurfatoms], pos[surfatoms]))
+    print("min_dist_nonsurf_surf", min_dist_nonsurf_surf)
+    print("min_dist_surf_h", min_dist_surf_h)
+    outside_surfH = py_surfH[min_dist_nonsurf_h < min_dist_nonsurf_surf]
 
     return py_surfH
 

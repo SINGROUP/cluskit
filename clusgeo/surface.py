@@ -178,6 +178,7 @@ def get_edge_sites(obj, surfatoms, distance = 1.8):
     #convert int array to c_int array
     surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
     # convert double to c_double
+    distPy = distance
     distance = c_double(float(distance))
 
     # convert to c_double arrays
@@ -198,13 +199,15 @@ def get_edge_sites(obj, surfatoms, distance = 1.8):
     py_surfH = py_surfH[:Nedge] 
 
     # check whether adsorbate is inside
-    print(surfatoms)
-    print(py_totalAN)
+#    print(surfatoms)
+#    print(py_totalAN)
     full_ids = np.arange(py_totalAN)
     non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
     min_dist_nonsurf_h = np.min(cdist(pos[non_surfatoms], py_surfH), axis = 0)
     min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
-    outside_surfH = py_surfH[min_dist_nonsurf_h > min_dist_nonsurf_surf]
+    min_dist_all_h = np.min(cdist(pos[full_ids], py_surfH), axis = 0)
+    outside_surfH = py_surfH[np.logical_and((min_dist_nonsurf_h > min_dist_nonsurf_surf), (min_dist_all_h > (distPy - 0.1) ))]
+#    print(min_dist_all_h)
 
     return outside_surfH
 
@@ -227,6 +230,7 @@ def get_hollow_sites(obj, surfatoms, distance= 1.8):
     #convert int array to c_int array
     surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
     # convert double to c_double
+    distPy = distance
     distance = c_double(float(distance))
 
     # convert to c_double arrays
@@ -251,7 +255,8 @@ def get_hollow_sites(obj, surfatoms, distance= 1.8):
     non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
     min_dist_nonsurf_h = np.min(cdist(pos[non_surfatoms], py_surfH), axis = 0)
     min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
-    outside_surfH = py_surfH[min_dist_nonsurf_h > min_dist_nonsurf_surf]
+    min_dist_all_h = np.min(cdist(pos[full_ids], py_surfH), axis = 0)
+    outside_surfH = py_surfH[np.logical_and((min_dist_nonsurf_h > min_dist_nonsurf_surf), (min_dist_all_h > (distPy - 0.1) ))]
 
     return outside_surfH
 
@@ -301,7 +306,7 @@ def x2_to_x(pos, bondlength):
     updated_pos = np.array([py_x_new, py_y_new, py_z_new]).T
 
     updated_pos = updated_pos[:updated_totalAN]
-    print(updated_totalAN)
+#    print(updated_totalAN)
 
     return updated_pos
 

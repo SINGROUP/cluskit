@@ -52,7 +52,7 @@ def _safe_fps(pts, K, greedy=False):
                 min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])   
     return fts_ids
 
-def get_soap_cluster(obj, only_surface = False, bubblesize = 2.5, 
+def get_cluster_descriptor(obj, only_surface = False, bubblesize = 2.5, 
         rCut=5.0, NradBas=5, Lmax=5, crossOver=True, all_atomtypes=[]):
     """Takes an ASE atoms object and a boolean only_surface as input (next to SOAP-specific arguments).
     Returns a 2D array with a soap feature vector on a row per atom 
@@ -68,7 +68,7 @@ def get_soap_cluster(obj, only_surface = False, bubblesize = 2.5,
         soapmatrix= soapmatrix[surfid]
     return soapmatrix
 
-def get_soap_sites(obj, pos, rCut=5.0, NradBas=5, Lmax=5, 
+def _get_sites_descriptor(obj, pos, rCut=5.0, NradBas=5, Lmax=5, 
         crossOver=True, all_atomtypes=[]):
     """Takes an ASE atoms object and a 2D-array of site positions (next to SOAP-specific arguments).
     Returns a 2D array with a soap feature vector on a row per specified site 
@@ -118,7 +118,7 @@ def get_unique_sites(soapmatrix, threshold = 0.001, idx=[]):
     return unique_ids
 
 
-def rank_sites(soapmatrix, K = None, idx=[], greedy = False, is_safe = False):
+def get_ranked_sites(soapmatrix, K = None, idx=[], greedy = False, is_safe = False):
     """Takes a 2D-array soapmatrix, a uniqueness-threshold and optionally a list of indices as input.
     Returns a list of indices.
     """
@@ -151,3 +151,10 @@ def rank_sites(soapmatrix, K = None, idx=[], greedy = False, is_safe = False):
     assert len(ranked_ids) == len(set(ranked_ids)), "Error! Double counting in FPS! Use is_safe = True." 
 
     return ranked_ids
+
+
+
+def get_unique_surface_atoms():
+    """same as get_unique_sites()"""
+
+

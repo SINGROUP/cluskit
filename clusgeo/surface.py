@@ -41,233 +41,247 @@ def _format_ase2clusgeo(obj, all_atomtypes=[]):
     Apos = np.concatenate(pos_lst).ravel()
     return Apos, typeNs, Ntypes, atomtype_lst, totalAN
 
-def get_surface_atoms(obj, bubblesize = 2.5):
-    """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
-    Returns an array of indices of surface atoms.
-    """
-    # get clusgeo internal format for c-code
-    py_totalAN = len(obj)
-    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
-    pos = obj.get_positions()
-    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+class ClusGeo(ase.Atoms):
 
-    # convert int to c_int
-    totalAN = c_int(py_totalAN)
-    # convert double to c_double
-    bubblesize = c_double(float(bubblesize))
-    #convert int array to c_int array
-    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+    def __init__(self, symbols=None,
+                positions=None, numbers=None,
+                tags=None, momenta=None, masses=None,
+                magmoms=None, charges=None,
+                scaled_positions=None,
+                cell=None, pbc=None, celldisp=None,
+                constraint=None,
+                calculator=None,
+                info=None,
+                surface=None):
 
-    # convert to c_double arrays
-    x = (c_double * py_totalAN)(*py_x)
-    y = (c_double * py_totalAN)(*py_y)
-    z = (c_double * py_totalAN)(*py_z)
+     super().__init__(symbols=symbols,
+                positions=positions, numbers=numbers,
+                tags=tags, momenta=momenta, masses=masses,
+                magmoms=magmoms, charges=charges,
+                scaled_positions=scaled_positions,
+                cell=cell, pbc=pbc, celldisp=celldisp,
+                constraint=constraint,
+                calculator=calculator,
+                info=info)
 
-    _LIBCLUSGEO.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
-    _LIBCLUSGEO.findSurf.restype = c_int
+     if surface is not None:
+         if isinstance(surface[0], bool) or isinstance(surface[0], np.bool_):
+             self.arrays['surface'] = np.array(surface, dtype='bool')
+         elif isinstance(surface[0], list):
+             surface_hold = np.zeros(len(self.arrays['positions']), dtype='bool')
+             surface_hold[surface] = True
+             self.arrays['surface'] = surface_hold
+     else:
+         _ = self.get_surface_atoms()
 
-    Nsurf = _LIBCLUSGEO.findSurf(x, y, z, surfAtoms, totalAN, bubblesize)
+    def get_surface_atoms(self, bubblesize = 2.5, bool=False):
+        """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
+        Returns an array of indices of surface atoms.
+        """
+        # get clusgeo internal format for c-code
+        if self.has('surface'):
+            if bool:
+                return self.arrays['surface']
+            else:
+                return np.nonzero(self.arrays['surface'])[0]
 
-    py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
-    py_surfAtoms = py_surfAtoms[:Nsurf]
+        py_totalAN = len(self)
+        py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+        pos = self.get_positions()
+        py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
 
-    return py_surfAtoms
-####### NEW 2018/Jun/26 - Aki########################################################
-def get_nonsurface_atoms(obj, bubblesize = 2.5):
-    """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
-    Returns an array of indices of surface atoms.
-    """
-    # get clusgeo internal format for c-code
-    py_totalAN = len(obj)
-    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
-    py_nonsurfAtoms = np.zeros(py_totalAN, dtype=int) #++
-    pos = obj.get_positions()
-    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+        # convert int to c_int
+        totalAN = c_int(py_totalAN)
+        # convert double to c_double
+        bubblesize = c_double(float(bubblesize))
+        #convert int array to c_int array
+        surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
 
-    # convert int to c_int
-    totalAN = c_int(py_totalAN)
-    # convert double to c_double
-    bubblesize = c_double(float(bubblesize))
-    #convert int array to c_int array
-    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
-    nonSurf = (c_int * py_totalAN)(*py_nonsurfAtoms)
+        # convert to c_double arrays
+        x = (c_double * py_totalAN)(*py_x)
+        y = (c_double * py_totalAN)(*py_y)
+        z = (c_double * py_totalAN)(*py_z)
 
-    # convert to c_double arrays
-    x = (c_double * py_totalAN)(*py_x)
-    y = (c_double * py_totalAN)(*py_y)
-    z = (c_double * py_totalAN)(*py_z)
+        _LIBCLUSGEO.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
+        _LIBCLUSGEO.findSurf.restype = c_int
 
-    _LIBCLUSGEO.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
-    _LIBCLUSGEO.getNonSurf.argtypes = [POINTER (c_double), c_int, c_int, POINTER (c_double)]
+        Nsurf = _LIBCLUSGEO.findSurf(x, y, z, surfAtoms, totalAN, bubblesize)
 
-    _LIBCLUSGEO.findSurf.restype = c_int
-    _LIBCLUSGEO.getNonSurf.restype = c_int
+        py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
+        py_surfAtoms = py_surfAtoms[:Nsurf]
 
-    Nsurf = _LIBCLUSGEO.findSurf(x, y, z, surfAtoms, totalAN, bubblesize) 
-    NnonSurf = _LIBCLUSGEO.getNonSurf(nonSurf, totalAN, Nsurf, surfAtoms) 
+        surface_hold = np.zeros(len(self), dtype='bool')
+        surface_hold[py_surfAtoms] = True
+        self.arrays['surface'] = surface_hold
+
+        if bool:
+            return surface_hold
+        else:
+            return py_surfAtoms
+    ####### NEW 2018/Jun/26 - Aki########################################################
+    def get_nonsurface_atoms(self, bubblesize = 2.5):
+        """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
+        Returns an array of indices of surface atoms.
+        """
+        # get clusgeo internal format for c-code
+        surface = self.get_surface_atoms(bool=True)
+        return np.nonzero(np.logical_not(surface))[0]
+
+    def _get_top_sites(self, distance=1.5):
+        """Takes an ASE atoms object, an array of surface atom indices and a distance as input
+        Returns a 2D-array of top site positions with the defined distance from the surface.
+        """
+        # get clusgeo internal format for c-code
+        py_totalAN = len(self)
+        surfatoms = self.get_surface_atoms()
+        py_Nsurf = len(surfatoms)
+        py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+        py_surfAtoms[:py_Nsurf] = surfatoms
+        pos = self.get_positions()
+        py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
     
-    py_nonsurfAtoms = np.ctypeslib.as_array( nonSurf, shape=(py_totalAN))
-    py_surfAtoms = py_surfAtoms[:NnonSurf]
-
-    return py_nonsurfAtoms
-
-#################################################################################################
-
-# replace top bridge hollow sites by get_sites()
-
-
-def _get_top_sites(obj, surfatoms, distance=1.5):
-    """Takes an ASE atoms object, an array of surface atom indices and a distance as input
-    Returns a 2D-array of top site positions with the defined distance from the surface.
-    """
-    # get clusgeo internal format for c-code
-    py_totalAN = len(obj)
-    py_Nsurf = len(surfatoms)
-    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
-    py_surfAtoms[:py_Nsurf] = surfatoms
-    pos = obj.get_positions()
-    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
-
-    # convert int to c_int
-    totalAN = c_int(py_totalAN)
-    Nsurf = c_int(py_Nsurf)
-    # convert double to c_double
-    distance = c_double(float(distance))
-
-    #convert int array to c_int array
-    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
-
-    # convert to c_double arrays
-    x = (c_double * py_totalAN)(*py_x)
-    y = (c_double * py_totalAN)(*py_y)
-    z = (c_double * py_totalAN)(*py_z)
-
-    sites = (c_double*(py_Nsurf * 3  ) )()
-
-    _LIBCLUSGEO.getEta1.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
-
-    _LIBCLUSGEO.getEta1(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
-
-    py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3))
-    py_sites= py_sites.reshape((py_Nsurf,3))
-
-    return py_ssites
-
-
-def _get_bridge_sites(obj, surfatoms, distance = 1.8):
-    """Takes an ASE atoms object,an array of surface atom indices and a distance as input
-    Returns a 2D-array of top site positions with the defined distance from the surface atoms.
-    """
-    # get clusgeo internal format for c-code
-    py_totalAN = len(obj)
-    py_Nsurf = len(surfatoms)
-    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
-    py_surfAtoms[:py_Nsurf] = surfatoms
-    pos = obj.get_positions()
-    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
-
-    # convert int to c_int
-    totalAN = c_int(py_totalAN)
-    Nsurf = c_int(py_Nsurf)
-
-    #convert int array to c_int array
-    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
-    # convert double to c_double
-    distPy = distance
-    distance = c_double(float(distance))
-
-    # convert to c_double arrays
-    x = (c_double * py_totalAN)(*py_x)
-    y = (c_double * py_totalAN)(*py_y)
-    z = (c_double * py_totalAN)(*py_z)
-
-    sites = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
-
-
-    _LIBCLUSGEO.getEta2.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), 
-        POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
-
-    Nbridge = _LIBCLUSGEO.getEta2(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
-
-    py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3* py_Nsurf))
-    py_sites = py_sites.reshape((py_Nsurf*py_Nsurf,3))
-    py_sites = py_sites[:Nbridge] 
-
-    # check whether adsorbate is inside
-
-    full_ids = np.arange(py_totalAN)
-    non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
-    min_dist_inside_sites = np.min(cdist(pos[non_surfatoms], py_sites), axis = 0)
-    min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
-    min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
-    outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
-    return outside_sites
-
-def _get_hollow_sites(obj, surfatoms, distance= 1.8):
-    """Takes an ASE atoms object, an array of surface atom indices and a distance as input
-    Returns a 2D-array of top site positions with the defined distance from the surface atoms.
-    """
-    # get clusgeo internal format for c-code
-    py_totalAN = len(obj)
-    py_Nsurf = len(surfatoms)
-    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
-    py_surfAtoms[:py_Nsurf] = surfatoms
-    pos = obj.get_positions()
-    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
-
-    # convert int to c_int
-    totalAN = c_int(py_totalAN)
-    Nsurf = c_int(py_Nsurf)
-
-    #convert int array to c_int array
-    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
-    # convert double to c_double
-    distPy = distance
-    distance = c_double(float(distance))
-
-    # convert to c_double arrays
-    x = (c_double * py_totalAN)(*py_x)
-    y = (c_double * py_totalAN)(*py_y)
-    z = (c_double * py_totalAN)(*py_z)
-
-    sites = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
-
-
-    _LIBCLUSGEO.getEta3.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), 
-        POINTER (c_int), c_int, c_int, c_double]
-
-    Nhollow = _LIBCLUSGEO.getEta3(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
-
-    py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3* py_Nsurf))
-    py_sites = py_sites.reshape((py_Nsurf*py_Nsurf,3))
-    py_sites = py_sites[:Nhollow] 
-
-    # check whether adsorbate is inside
-    full_ids = np.arange(py_totalAN)
-    non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
-    min_dist_inside_sites = np.min(cdist(pos[non_surfatoms], py_sites), axis = 0)
-    min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
-    min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
-    outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
-
-    return outside_sites
-
-def get_sites(obj, surfatoms, sitetype=-1,  distance= 1.8):
-    if sitetype == -1:
-        top = _get_top_sites(obj, surfatoms, distance=distance)
-        bridge = _get_bridge_sites(obj, surfatoms, distance=distance)
-        hollow = _get_hollow_sites(obj, surfatoms, distance=distance)
-        return {1: top, 2: bridge, 3: hollow}
-    elif sitetype == 1:
-        return _get_top_sites(obj, surfatoms, distance=distance)
-    elif sitetype == 2:
-        return _get_bridge_sites(obj, surfatoms, distance=distance)
-    elif sitetype == 3:
-        return _get_hollow_sites(obj, surfatoms, distance=distance)
-
-    else:
-        raise ValueError("sitetype not understood. Use -1,1,2 or 3")
-
+        # convert int to c_int
+        totalAN = c_int(py_totalAN)
+        Nsurf = c_int(py_Nsurf)
+        # convert double to c_double
+        distance = c_double(float(distance))
+    
+        #convert int array to c_int array
+        surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+    
+        # convert to c_double arrays
+        x = (c_double * py_totalAN)(*py_x)
+        y = (c_double * py_totalAN)(*py_y)
+        z = (c_double * py_totalAN)(*py_z)
+    
+        sites = (c_double*(py_Nsurf * 3  ) )()
+    
+        _LIBCLUSGEO.getEta1.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
+    
+        _LIBCLUSGEO.getEta1(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+    
+        py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3))
+        py_sites= py_sites.reshape((py_Nsurf,3))
+    
+        return py_sites
+    
+    
+    def _get_bridge_sites(self, distance = 1.8):
+        """Takes an ASE atoms object,an array of surface atom indices and a distance as input
+        Returns a 2D-array of top site positions with the defined distance from the surface atoms.
+        """
+        # get clusgeo internal format for c-code
+        py_totalAN = len(self)
+        surfatoms = self.get_surface_atoms()
+        py_Nsurf = len(surfatoms)
+        py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+        py_surfAtoms[:py_Nsurf] = surfatoms
+        pos = self.get_positions()
+        py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+    
+        # convert int to c_int
+        totalAN = c_int(py_totalAN)
+        Nsurf = c_int(py_Nsurf)
+    
+        #convert int array to c_int array
+        surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+        # convert double to c_double
+        distPy = distance
+        distance = c_double(float(distance))
+    
+        # convert to c_double arrays
+        x = (c_double * py_totalAN)(*py_x)
+        y = (c_double * py_totalAN)(*py_y)
+        z = (c_double * py_totalAN)(*py_z)
+    
+        sites = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
+    
+    
+        _LIBCLUSGEO.getEta2.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), 
+            POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
+    
+        Nbridge = _LIBCLUSGEO.getEta2(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+    
+        py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3* py_Nsurf))
+        py_sites = py_sites.reshape((py_Nsurf*py_Nsurf,3))
+        py_sites = py_sites[:Nbridge] 
+    
+        # check whether adsorbate is inside
+    
+        full_ids = np.arange(py_totalAN)
+        non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
+        min_dist_inside_sites = np.min(cdist(pos[non_surfatoms], py_sites), axis = 0)
+        min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
+        min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
+        outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
+        return outside_sites
+    
+    def _get_hollow_sites(self, distance= 1.8):
+        """Takes an ASE atoms object, an array of surface atom indices and a distance as input
+        Returns a 2D-array of top site positions with the defined distance from the surface atoms.
+        """
+        # get clusgeo internal format for c-code
+        py_totalAN = len(self)
+        surfatoms = self.get_surface_atoms()
+        py_Nsurf = len(surfatoms)
+        py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+        py_surfAtoms[:py_Nsurf] = surfatoms
+        pos = self.get_positions()
+        py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+    
+        # convert int to c_int
+        totalAN = c_int(py_totalAN)
+        Nsurf = c_int(py_Nsurf)
+    
+        #convert int array to c_int array
+        surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+        # convert double to c_double
+        distPy = distance
+        distance = c_double(float(distance))
+    
+        # convert to c_double arrays
+        x = (c_double * py_totalAN)(*py_x)
+        y = (c_double * py_totalAN)(*py_y)
+        z = (c_double * py_totalAN)(*py_z)
+    
+        sites = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
+    
+    
+        _LIBCLUSGEO.getEta3.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), 
+            POINTER (c_int), c_int, c_int, c_double]
+    
+        Nhollow = _LIBCLUSGEO.getEta3(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+    
+        py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3* py_Nsurf))
+        py_sites = py_sites.reshape((py_Nsurf*py_Nsurf,3))
+        py_sites = py_sites[:Nhollow] 
+    
+        # check whether adsorbate is inside
+        full_ids = np.arange(py_totalAN)
+        non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
+        min_dist_inside_sites = np.min(cdist(pos[non_surfatoms], py_sites), axis = 0)
+        min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
+        min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
+        outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
+    
+        return outside_sites
+    
+    def get_sites(self, sitetype=-1,  distance= 1.8):
+        if sitetype == -1:
+            top = self._get_top_sites(distance=distance)
+            bridge = self._get_bridge_sites(distance=distance)
+            hollow = self._get_hollow_sites(distance=distance)
+            return {1: top, 2: bridge, 3: hollow}
+        elif sitetype == 1:
+            return self._get_top_sites(distance=distance)
+        elif sitetype == 2:
+            return self._get_bridge_sites(distance=distance)
+        elif sitetype == 3:
+            return self._get_hollow_sites(distance=distance)
+    
+        else:
+            raise ValueError("sitetype not understood. Use -1,1,2 or 3")
+    
 
 if __name__ == "__main__":
     #atoms = ase.io.read("h2o2.xyz")

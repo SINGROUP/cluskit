@@ -1,8 +1,13 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
-from builtins import (bytes, str, open, super, range, zip, round, input, int, pow, object)
 
-import unittest
+try:
+	from builtins import (bytes, str, open, super, range, zip, round, input, int, pow, object)
+except ImportError:
+    from __builtin__ import (bytes, str, open, super, range, zip, round, input, int, pow, object)
+
+
 import sys
+import unittest
 
 # Import the test modules
 import generaltests

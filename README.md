@@ -1,5 +1,11 @@
 # ClusGeo3.0
 
+
+
+[![Build Status](https://travis-ci.org/SINGROUP/clusgeo.svg?branch=master)](https://travis-ci.org/SINGROUP/clusgeo)
+[![Coverage Status](https://coveralls.io/repos/github/SINGROUP/clusgeo/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/clusgeo?branch=master)
+
+
 ClusGeo is a python package dedicated to surface science on nanoclusters. ClusGeo currently focuses on the population of given nanoclusters with adsorbates. Furthermore, at a later stage it will also feature the generation of a multitude of different types of nanoclusters.
 
 Sites on the nanoclusters are classified as top, bridge and hollow. One can automatically detect surface atoms as well as those sites on arbitrary nanoclusters. Using a structural descriptor those surface atoms or sites can be compared with each other with respect to their (dis)similarity.

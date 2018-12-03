@@ -1,9 +1,7 @@
 # ClusGeo3.0
 
-
-
-[![Build Status](https://travis-ci.org/SINGROUP/clusgeo.svg?branch=master)](https://travis-ci.org/SINGROUP/clusgeo)
-[![Coverage Status](https://coveralls.io/repos/github/SINGROUP/clusgeo/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/clusgeo?branch=master)
+[![Build Status](https://travis-ci.org/SINGROUP/ClusGeo3.0.svg?branch=master)](https://travis-ci.org/SINGROUP/ClusGeo3.0)
+[![Coverage Status](https://coveralls.io/repos/github/SINGROUP/ClusGeo3.0/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/ClusGeo3.0?branch=master)
 
 
 ClusGeo is a python package dedicated to surface science on nanoclusters. ClusGeo currently focuses on the population of given nanoclusters with adsorbates. Furthermore, at a later stage it will also feature the generation of a multitude of different types of nanoclusters.

@@ -14,6 +14,7 @@ class ASETests(unittest.TestCase):
     def test_import(self):
         """Tests that an ASE Atoms is succesfully converted to a NanoCluster object.
         """
+        import clusgeo
 
         water = molecule('H2O')
         nc_water = water.copy() # not implemented yet

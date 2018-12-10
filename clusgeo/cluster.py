@@ -112,7 +112,7 @@ class ClusGeo(ase.Atoms):
                 info=None,
                 surface=None):
 
-        super().__init__(symbols=symbols,
+        super(self).__init__(symbols=symbols,
                     positions=positions, numbers=numbers,
                     tags=tags, momenta=momenta, masses=masses,
                     magmoms=magmoms, charges=charges,

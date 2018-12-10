@@ -112,6 +112,4 @@ def write_all_sites(atoms, structure_name = "ref", path = "./"):
         dirname = "hollow/" + "H" + str(idx + 1)
         pathlib.Path(dirname).mkdir(parents=True, exist_ok=True) 
         ase.io.write(dirname + "/" + structure_name + "H.xyz", structure_H)       
-
-
     return None

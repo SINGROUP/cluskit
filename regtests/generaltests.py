@@ -14,10 +14,10 @@ class ASETests(unittest.TestCase):
     def test_import(self):
         """Tests that an ASE Atoms is succesfully converted to a NanoCluster object.
         """
-        import clusgeo
+        from clusgeo import ClusGeo
 
         water = molecule('H2O')
-        nc_water = water.copy() # not implemented yet
+        nc_water = ClusGeo(water.copy()) # not implemented yet
 
         self.assertTrue(np.array_equal(water.get_positions(), nc_water.get_positions()))
 

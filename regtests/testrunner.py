@@ -11,6 +11,7 @@ import unittest
 
 # Import the test modules
 import generaltests
+import cluster
 
 
 # Initialize the test suite
@@ -19,6 +20,7 @@ suite = unittest.TestSuite()
 
 # Add tests to the test suite
 suite.addTests(loader.loadTestsFromModule(generaltests))
+suite.addTests(loader.loadTestsFromModule(cluster))
 
 # Initialize a runner, pass it the suite and run it
 runner = unittest.TextTestRunner(verbosity=3)

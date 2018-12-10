@@ -2,7 +2,6 @@ import numpy as np
 import ase, ase.io
 import os, argparse, glob
 from ctypes import *
-import pathlib
 from scipy.spatial.distance import cdist, squareform, pdist
 
 import dscribe
@@ -133,9 +132,9 @@ class ClusGeo(ase.Atoms):
         else:
             _ = self.get_surface_atoms()
 
-        self.site_positions = None
+        self.site_positions = {}
         self.cluster_descriptor = None
-        self.sites_descriptor = None
+        self.sites_descriptor = {}
 
 
 
@@ -230,9 +229,8 @@ class ClusGeo(ase.Atoms):
     
         py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3))
         py_sites= py_sites.reshape((py_Nsurf,3))
-    
-        return py_sites
-    
+        self.site_positions[1] = py_sites
+        return self.site_positions[1]    
     
     def _get_bridge_sites(self, distance = 1.8):
         """Takes an ASE atoms object,an array of surface atom indices and a distance as input
@@ -282,7 +280,9 @@ class ClusGeo(ase.Atoms):
         min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
         min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
         outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
-        return outside_sites
+        self.site_positions[2] = outside_sites
+        return self.site_positions[2]
+    
     
     def _get_hollow_sites(self, distance= 1.8):
         """Takes an ASE atoms object, an array of surface atom indices and a distance as input
@@ -331,15 +331,15 @@ class ClusGeo(ase.Atoms):
         min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
         min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
         outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
-    
-        return outside_sites
+        self.site_positions[3] = outside_sites
+        return self.site_positions[3]
     
     def get_sites(self, sitetype=-1,  distance= 1.8):
         if sitetype == -1:
             top = self._get_top_sites(distance=distance)
             bridge = self._get_bridge_sites(distance=distance)
             hollow = self._get_hollow_sites(distance=distance)
-            return {1: top, 2: bridge, 3: hollow}
+            return np.vstack((top, bridge, hollow))
         elif sitetype == 1:
             return self._get_top_sites(distance=distance)
         elif sitetype == 2:
@@ -348,7 +348,7 @@ class ClusGeo(ase.Atoms):
             return self._get_hollow_sites(distance=distance)
     
         else:
-            raise ValueError("sitetype not understood. Use -1,1,2 or 3")
+            raise ValueError("sitetype not understood. Use -1, 1, 2 or 3")
     
 
 
@@ -362,25 +362,45 @@ class ClusGeo(ase.Atoms):
 
         alp, bet = soaplite.genBasis.getBasisFunc(rCut, NradBas) # input:(rCut, NradBas)
         soapmatrix = soaplite.get_soap_structure(self, alp, bet, rCut=rCut, NradBas=NradBas, Lmax=Lmax, crossOver=crossOver, all_atomtypes=all_atomtypes )
-
+        self.cluster_descriptor = soapmatrix
         if only_surface == True:
             surfid = self.get_surface_atoms(bubblesize = bubblesize)
             soapmatrix= soapmatrix[surfid]
-        return soapmatrix
+            return soapmatrix
+        else:
+            return self.cluster_descriptor
 
-    def get_sites_descriptor(self, pos, sitetype = -1, rCut=5.0, NradBas=5, Lmax=5, 
+
+    def get_sites_descriptor(self, sitetype = -1, rCut=5.0, NradBas=5, Lmax=5, 
             crossOver=True, all_atomtypes=[]):
         """Takes an ASE atoms object and a 2D-array of site positions (next to SOAP-specific arguments).
         Returns a 2D array with a soap feature vector on a row per specified site 
         """
+        if sitetype == -1:
+            pos = np.vstack((self.site_positions[1], self.site_positions[2], self.site_positions[3]))
+        else:
+            pos = self.site_positions[sitetype]
         alp, bet = soaplite.genBasis.getBasisFunc(rCut, NradBas) # input:(rCut, NradBas)
         soapmatrix = soaplite.get_soap_locals(self, pos, alp, bet, rCut=rCut, NradBas=NradBas, Lmax=Lmax, crossOver=crossOver, all_atomtypes=all_atomtypes )
+        if sitetype == -1:
+            n_top_sites = self.site_positions[1].shape[0]
+            n_bridge_sites = self.site_positions[2].shape[0]
+            n_hollow_sites = self.site_positions[3].shape[0]
+            self.sites_descriptor[1] = soapmatrix[:n_top_sites]
+            self.sites_descriptor[2] = soapmatrix[n_top_sites: n_top_sites + n_bridge_sites]
+            self.sites_descriptor[3] = soapmatrix[n_top_sites + n_bridge_sites :]
+        else:
+            self.sites_descriptor[sitetype] = soapmatrix
         return soapmatrix
 
-    def get_unique_sites(soapmatrix, threshold = 0.001, idx=[]):
+    def get_unique_sites(self, sitetype = -1, threshold = 0.001, idx=[]):
         """Takes a 2D-array soapmatrix, a uniqueness-threshold and optionally a list of indices as input.
         Returns a list of indices.
         """
+        if sitetype == -1:
+            soapmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
+        else:
+            soapmatrix = self.sites_descriptor[sitetype]
         unique_lst = []
         if len(idx) == 0:
             print("no ids given")
@@ -418,16 +438,20 @@ class ClusGeo(ase.Atoms):
         return unique_ids
 
 
-    def get_ranked_sites(soapmatrix, K = None, idx=[], greedy = False, is_safe = False):
+    def get_ranked_sites(self, sitetype = -1, K = None, idx=[], greedy = False, is_safe = False):
         """Takes a 2D-array soapmatrix, a uniqueness-threshold and optionally a list of indices as input.
         Returns a list of indices.
         """
+        if sitetype == -1:
+            soapmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
+        else:
+            soapmatrix = self.sites_descriptor[sitetype]
         ranked_lst = []
         if len(idx) == 0:
             print("no ids given")
         else:
             print("using ids",len(idx), len(soapmatrix) )
-            assert len(idx) == len(soapmatrix), "give a list of indices of length %r" % len(soapmatrix) 
+            #assert len(idx) == len(soapmatrix), "give a list of indices of length %r" % len(soapmatrix) 
 
         if K == None:
             # run over all datapoints
@@ -453,8 +477,44 @@ class ClusGeo(ase.Atoms):
 
 
 
-    def get_unique_surface_atoms():
+    def get_unique_surface_atoms(self, threshold = 0.001, idx=[]):
         """same as get_unique_sites()"""
+        soapmatrix = self.cluster_descriptor
+        unique_lst = []
+        if len(idx) == 0:
+            print("no ids given")
+        else:
+            print("using ids",len(idx), len(soapmatrix) )
+            #assert len(idx) == len(soapmatrix), "give a list of indices of length %r" % len(soapmatrix) 
+
+        dist_matrix = squareform(pdist(soapmatrix))
+        K = soapmatrix.shape[0]
+        n_features = soapmatrix.shape[1]
+        fts_ids = np.zeros(K, dtype='int') -1
+         
+        #choosing random start point
+        fts_ids[0] = np.random.choice(soapmatrix.shape[0])
+         
+        #finding next k-1
+        min_dist = dist_matrix[fts_ids[0]]
+        for i in range(1, K):
+            if min_dist.max() / (1.0 * n_features) < threshold:
+                # early stop based on threshold
+                fts_ids = fts_ids[:i]
+                break
+            else:
+                fts_ids[i] = np.argmax(min_dist)
+                min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])   
+        return fts_ids
+
+
+        idx = np.array(idx, dtype = int)
+        if len(idx) != 0:
+            unique_ids = idx[unique_lst]
+        else:
+            unique_ids = unique_lst
+
+        return unique_ids
 
 
 

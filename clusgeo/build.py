@@ -210,9 +210,7 @@ def get_ordered(typeA, typeB, ntypeB, n_clus = 1, clusSize=3,clusShape="ico"):
 
 
 # in utils ?
-def get_unique_clusters_in_range(
-
-    ):
+def get_unique_clusters_in_range():
 	pass
 
 

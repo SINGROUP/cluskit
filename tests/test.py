@@ -4,36 +4,42 @@ import os,sys,inspect
 #parentdir = os.path.dirname(currentdir)
 #sys.path.insert(0,parentdir)
 
-import clusgeo.surface, clusgeo.environment
+import clusgeo
 import ase
 import numpy as np
+from clusgeo import ClusGeo
 
 atoms = ase.io.read("au40cu40.xyz")
-atoms = ase.io.read("pureSymFe4icos.xyz")
+#atoms = ase.io.read("pureSymFe4icos.xyz")
 
-surfaceAtoms = clusgeo.surface.get_surface_atoms(atoms, bubblesize = 2.7)
-#nonSurf = clusgeo.surface.get_nonsurf_atoms(atoms, bubblesize = 2.5)
-#print("non-surface atoms")
+cluster = ClusGeo(atoms)
+
+surfaceAtoms = cluster.get_surface_atoms(bubblesize = 2.7)
+nonSurf = cluster.get_nonsurface_atoms(bubblesize = 2.7)
+print("surface atoms", len(surfaceAtoms))
+print("non-surface atoms", len(nonSurf))
 #print(nonSurf)
 
-atnum = atoms.get_atomic_numbers()
-atnum[surfaceAtoms] = 103
-atoms.set_atomic_numbers(atnum)
-ase.io.write("test.xyz", atoms)
+#atnum = atoms.get_atomic_numbers()
+#atnum[surfaceAtoms] = 103
+#atoms.set_atomic_numbers(atnum)
+#ase.io.write("test.xyz", atoms)
 
 
-print(surfaceAtoms)
-atoms = ase.io.read("au40cu40.xyz")
-atoms = ase.io.read("Au-icosahedron-3.xyz")
-atoms = ase.io.read("pureSymFe4icos.xyz")
+#atoms = ase.io.read("au40cu40.xyz")
+#atoms = ase.io.read("Au-icosahedron-3.xyz")
+#atoms = ase.io.read("pureSymFe4icos.xyz")
 
-soapmatrix = clusgeo.environment.get_soap_cluster(atoms, only_surface=False, bubblesize=2.5, NradBas=10, Lmax =9)
-surfsoapmatrix = clusgeo.environment.get_soap_cluster(atoms, only_surface=True, bubblesize=2.5, NradBas=10, Lmax =9)
+soapmatrix = cluster.get_cluster_descriptor(only_surface=False, bubblesize=2.7, NradBas=10, Lmax =9)
+print("get_cluster_descriptor" , soapmatrix.shape)
+soapmatrix = cluster.get_cluster_descriptor(only_surface=True, bubblesize=2.7, NradBas=10, Lmax =9)
+print("get_cluster_descriptor, only surface", soapmatrix.shape)
 
-print("soap cluster shape", soapmatrix.shape)
-surfatoms = clusgeo.surface.get_surface_atoms(atoms)
-sitepositions = clusgeo.surface.get_top_sites(atoms, surfatoms)
-sitesoapmatrix = clusgeo.environment.get_soap_sites(atoms, sitepositions, NradBas=10, Lmax =9)
+sitepositions = cluster.get_sites(1)
+
+print("top sites", sitepositions.shape)
+
+sitesoapmatrix = cluster.get_soap_sites(atoms, sitepositions, NradBas=10, Lmax =9)
 
 print("soap sites shape", sitesoapmatrix.shape)
 

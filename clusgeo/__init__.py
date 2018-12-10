@@ -1,1 +1,3 @@
-import clusgeo.surface, clusgeo.environment
+import clusgeo.build
+import clusgeo.cluster
+from clusgeo.cluster import ClusGeo

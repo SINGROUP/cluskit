@@ -3,7 +3,10 @@ import ase, ase.io
 import os, argparse, glob
 from ctypes import *
 import pathlib
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist, squareform, pdist
+
+import dscribe
+import soaplite
 
 _PATH_TO_CLUSGEO_SO = os.path.dirname(os.path.abspath(__file__))
 _CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libclusgeo3.*so*"]) )
@@ -41,6 +44,62 @@ def _format_ase2clusgeo(obj, all_atomtypes=[]):
     Apos = np.concatenate(pos_lst).ravel()
     return Apos, typeNs, Ntypes, atomtype_lst, totalAN
 
+
+def _fps(pts, K, greedy=False):
+    dist_matrix = squareform(pdist(pts))
+    fts_ids = np.zeros(K, dtype='int')
+     
+    #choosing random start point
+    fts_ids[0] = np.random.choice(pts.shape[0])
+     
+    #finding next k-1
+    if greedy:
+        for i in range(1, K):
+            fts_ids[i] = np.argmax(dist_matrix[fts_ids[i-1]])
+    else:
+        min_dist = dist_matrix[fts_ids[0]]
+        for i in range(1, K):
+            fts_ids[i] = np.argmax(min_dist)
+            min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])
+     
+    return fts_ids
+
+def _safe_fps(pts, K, greedy=False):
+    dist_matrix = squareform(pdist(pts))
+    fts_ids = np.zeros(K, dtype='int') -1
+     
+    #choosing random start point
+    fts_ids[0] = np.random.choice(pts.shape[0])
+     
+    #finding next k-1
+    if greedy:
+        for i in range(1, K):
+            arg = np.argmax(dist_matrix[fts_ids[i-1]])
+            if arg in fts_ids:
+                fts_ids[i] = np.argmax(np.isin(np.arange(K), fts_ids, invert=True))
+            else:
+                fts_ids[i] = np.argmax(dist_matrix[fts_ids[i-1]])
+    else:
+        min_dist = dist_matrix[fts_ids[0]]
+        for i in range(1, K):
+            if min_dist.max() < 10e-10:
+                fts_ids[i] = np.argmax(np.isin(np.arange(K), fts_ids, invert=True))
+            else:
+                fts_ids[i] = np.argmax(min_dist)
+                min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])   
+    return fts_ids
+
+def _rank_fps(pts, K, greedy=False, is_safe = False):
+    if is_safe:
+        ranked_lst = _safe_fps(pts, K, greedy = greedy)
+    else:
+        ranked_lst = _fps(pts, K, greedy = greedy)
+
+    return ranked_lst
+
+
+
+
 class ClusGeo(ase.Atoms):
 
     def __init__(self, symbols=None,
@@ -54,25 +113,34 @@ class ClusGeo(ase.Atoms):
                 info=None,
                 surface=None):
 
-     super().__init__(symbols=symbols,
-                positions=positions, numbers=numbers,
-                tags=tags, momenta=momenta, masses=masses,
-                magmoms=magmoms, charges=charges,
-                scaled_positions=scaled_positions,
-                cell=cell, pbc=pbc, celldisp=celldisp,
-                constraint=constraint,
-                calculator=calculator,
-                info=info)
+        super().__init__(symbols=symbols,
+                    positions=positions, numbers=numbers,
+                    tags=tags, momenta=momenta, masses=masses,
+                    magmoms=magmoms, charges=charges,
+                    scaled_positions=scaled_positions,
+                    cell=cell, pbc=pbc, celldisp=celldisp,
+                    constraint=constraint,
+                    calculator=calculator,
+                    info=info)
 
-     if surface is not None:
-         if isinstance(surface[0], bool) or isinstance(surface[0], np.bool_):
-             self.arrays['surface'] = np.array(surface, dtype='bool')
-         elif isinstance(surface[0], list):
-             surface_hold = np.zeros(len(self.arrays['positions']), dtype='bool')
-             surface_hold[surface] = True
-             self.arrays['surface'] = surface_hold
-     else:
-         _ = self.get_surface_atoms()
+        if surface is not None:
+            if isinstance(surface[0], bool) or isinstance(surface[0], np.bool_):
+                self.arrays['surface'] = np.array(surface, dtype='bool')
+            elif isinstance(surface[0], list):
+                surface_hold = np.zeros(len(self.arrays['positions']), dtype='bool')
+                surface_hold[surface] = True
+                self.arrays['surface'] = surface_hold
+        else:
+            _ = self.get_surface_atoms()
+
+        self.site_positions = None
+        self.cluster_descriptor = None
+        self.sites_descriptor = None
+
+
+
+
+
 
     def get_surface_atoms(self, bubblesize = 2.5, bool=False):
         """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
@@ -118,7 +186,7 @@ class ClusGeo(ase.Atoms):
             return surface_hold
         else:
             return py_surfAtoms
-    ####### NEW 2018/Jun/26 - Aki########################################################
+
     def get_nonsurface_atoms(self, bubblesize = 2.5):
         """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
         Returns an array of indices of surface atoms.
@@ -283,38 +351,112 @@ class ClusGeo(ase.Atoms):
             raise ValueError("sitetype not understood. Use -1,1,2 or 3")
     
 
+
+    def get_cluster_descriptor(self, only_surface = False, bubblesize = 2.5, 
+            rCut=5.0, NradBas=5, Lmax=5, crossOver=True, all_atomtypes=[]):
+        """Takes a boolean only_surface as input (next to SOAP-specific arguments).
+        Returns a 2D array with a soap feature vector on a row per atom 
+        (per surface atom, if only_surface is set to True).
+        bubblesize as an optional input defines how concave the surface can be.
+        """
+
+        alp, bet = soaplite.genBasis.getBasisFunc(rCut, NradBas) # input:(rCut, NradBas)
+        soapmatrix = soaplite.get_soap_structure(self, alp, bet, rCut=rCut, NradBas=NradBas, Lmax=Lmax, crossOver=crossOver, all_atomtypes=all_atomtypes )
+
+        if only_surface == True:
+            surfid = self.get_surface_atoms(bubblesize = bubblesize)
+            soapmatrix= soapmatrix[surfid]
+        return soapmatrix
+
+    def get_sites_descriptor(self, pos, sitetype = -1, rCut=5.0, NradBas=5, Lmax=5, 
+            crossOver=True, all_atomtypes=[]):
+        """Takes an ASE atoms object and a 2D-array of site positions (next to SOAP-specific arguments).
+        Returns a 2D array with a soap feature vector on a row per specified site 
+        """
+        alp, bet = soaplite.genBasis.getBasisFunc(rCut, NradBas) # input:(rCut, NradBas)
+        soapmatrix = soaplite.get_soap_locals(self, pos, alp, bet, rCut=rCut, NradBas=NradBas, Lmax=Lmax, crossOver=crossOver, all_atomtypes=all_atomtypes )
+        return soapmatrix
+
+    def get_unique_sites(soapmatrix, threshold = 0.001, idx=[]):
+        """Takes a 2D-array soapmatrix, a uniqueness-threshold and optionally a list of indices as input.
+        Returns a list of indices.
+        """
+        unique_lst = []
+        if len(idx) == 0:
+            print("no ids given")
+        else:
+            print("using ids",len(idx), len(soapmatrix) )
+            assert len(idx) == len(soapmatrix), "give a list of indices of length %r" % len(soapmatrix) 
+
+        dist_matrix = squareform(pdist(soapmatrix))
+        K = soapmatrix.shape[0]
+        n_features = soapmatrix.shape[1]
+        fts_ids = np.zeros(K, dtype='int') -1
+         
+        #choosing random start point
+        fts_ids[0] = np.random.choice(soapmatrix.shape[0])
+         
+        #finding next k-1
+        min_dist = dist_matrix[fts_ids[0]]
+        for i in range(1, K):
+            if min_dist.max() / (1.0 * n_features) < threshold:
+                # early stop based on threshold
+                fts_ids = fts_ids[:i]
+                break
+            else:
+                fts_ids[i] = np.argmax(min_dist)
+                min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])   
+        return fts_ids
+
+
+        idx = np.array(idx, dtype = int)
+        if len(idx) != 0:
+            unique_ids = idx[unique_lst]
+        else:
+            unique_ids = unique_lst
+
+        return unique_ids
+
+
+    def get_ranked_sites(soapmatrix, K = None, idx=[], greedy = False, is_safe = False):
+        """Takes a 2D-array soapmatrix, a uniqueness-threshold and optionally a list of indices as input.
+        Returns a list of indices.
+        """
+        ranked_lst = []
+        if len(idx) == 0:
+            print("no ids given")
+        else:
+            print("using ids",len(idx), len(soapmatrix) )
+            assert len(idx) == len(soapmatrix), "give a list of indices of length %r" % len(soapmatrix) 
+
+        if K == None:
+            # run over all datapoints
+            K = soapmatrix.shape[0]
+
+        print("K for fps", K, "matrix for FPS", soapmatrix.shape)    
+        if is_safe:
+            ranked_lst = _safe_fps(soapmatrix, K, greedy = greedy)
+        else:
+            ranked_lst = _fps(soapmatrix, K, greedy = greedy)
+
+
+
+        idx = np.array(idx, dtype = int)
+        if len(idx) != 0:
+            ranked_ids = idx[ranked_lst]
+        else:
+            ranked_ids = ranked_lst
+
+        assert len(ranked_ids) == len(set(ranked_ids)), "Error! Double counting in FPS! Use is_safe = True." 
+
+        return ranked_ids
+
+
+
+    def get_unique_surface_atoms():
+        """same as get_unique_sites()"""
+
+
+
 if __name__ == "__main__":
-    #atoms = ase.io.read("h2o2.xyz")
-    atoms = ase.io.read("BEAUT/beaut6.xyz")
-    atoms = ase.io.read("tests/au40cu40.xyz")
-    surfatoms = get_surface_atoms(atoms)
-
-    print("surface atoms:", surfatoms.shape)
-    surfit = atoms[surfatoms]
-    #ase.io.write("surface.xyz", surfit)
-    print("done get surface atoms")
-
-    topHxyz = get_top_sites(atoms, surfatoms)
-    print(topHxyz.shape)
-    topH = ase.Atoms('H'*len(topHxyz), topHxyz)
-    structure_topH = atoms + topH
-    #ase.io.write("structure_topH.xyz", structure_topH)
-    print("done get top sites")
-
-
-    bridgeHxyz = get_bridge_sites(atoms, surfatoms)
-    print(bridgeHxyz.shape)
-    
-    bridgeH = ase.Atoms('H'*len(bridgeHxyz), bridgeHxyz)
-    structure_bridgeH = atoms + bridgeH
-    #ase.io.write("structure_bridgeH.xyz", structure_bridgeH)
-    print("done get bridge sites")
-
-
-    hollowHxyz = get_hollow_sites(atoms, surfatoms)
-    print(hollowHxyz.shape)
-    
-    hollowH = ase.Atoms('H'*len(hollowHxyz), hollowHxyz)
-    structure_hollowH = atoms + hollowH
-    #ase.io.write("structure_hollowH.xyz", structure_hollowH)
-    print("done get hollow sites")
+    print("main")

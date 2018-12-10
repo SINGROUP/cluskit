@@ -1,5 +1,6 @@
 import ase
-from clusgeo.surface import ClusGeo
+from clusgeo.cluster import ClusGeo
+import clusgeo
 import numpy as np
 import ase, ase.io
 
@@ -13,9 +14,8 @@ from scipy.spatial.distance import squareform
 import random
 import time
 import dscribe
-from dscribe.descriptors import SOAP, ACSF
+from dscribe.descriptors import SOAP
 from dscribe import utils
-import clusgeo.surface, clusgeo.environment
 from ase.visualize import view
 import copy
 
@@ -176,7 +176,7 @@ def get_unique_clusters(eAA,eAB,eBB,cEA,cEB,typeA, typeB, ntypeB, n_clus = 1, cl
         atomsList.append(atoms.copy())
     
     x = utils.batch_create(desc, atomList,1 ,  positions=None, create_func=None, verbose=True)
-    ranks = clusgeo.environment.rank_sites(x, K = None, idx=[], greedy =False, is_safe = True)
+    ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False, is_safe = True)
     for i in range(0,howMany):
         view(atomsList[ranks[i]])
         final_atoms_list.append(atomsList[ranks[i]])

@@ -10,6 +10,10 @@ Sites on the nanoclusters are classified as top, bridge and hollow. One can auto
 
 ClusGeo is especially designed for creating many samples of adsorbates on a variety of nanoclusters without the need of visually checking the structures. It is complementary to the python package for surface slabs KatKit https://github.com/SUNCAT-Center/CatKit
 
+OLD DOCUMENTATION!
+breaking changes since then!
+will be updated in the near future...
+
 Currently ClusGeo has limited capabilities which will be enhanced in the near future:
 
 ## clusgeo.surface.get_surface_atoms(...)

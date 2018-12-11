@@ -99,6 +99,10 @@ def _rank_fps(pts, K, greedy=False, is_safe = False):
 
 
 class ClusGeo(ase.Atoms):
+    """ A child class of the ase.Atoms object. 
+    It is a nanocluster class with additional methods and attributes, 
+    built for the detection and classification of surfaces and adsorption sites. 
+    """
 
     def __init__(self, symbols=None,
                 positions=None, numbers=None,
@@ -158,21 +162,20 @@ class ClusGeo(ase.Atoms):
 
 
 
-
-
-
-
-    def get_surface_atoms(self, bubblesize = 2.5, bool=False):
-        """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
-        Returns an array of indices of surface atoms.
+    def get_surface_atoms(self, bubblesize = 2.5, mask=False):
+        """Determines the surface atoms of the nanocluster. Takes two optional inputs. 
+        Firstly, a bubblesize determining how concave a surface can be (the default usually works well).
+        Secondly, the boolean argument mask (default is False). 
+        If set to True, a mask array will be returned.
+        If False, it returns an array of indices of surface atoms.
         """
-        # get clusgeo internal format for c-code
         if self.has('surface'):
-            if bool:
+            if mask:
                 return self.arrays['surface']
             else:
                 return np.nonzero(self.arrays['surface'])[0]
 
+        # get clusgeo internal format for c-code
         py_totalAN = len(self)
         py_surfAtoms = np.zeros(py_totalAN, dtype=int)
         pos = self.get_positions()
@@ -198,26 +201,27 @@ class ClusGeo(ase.Atoms):
         py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
         py_surfAtoms = py_surfAtoms[:Nsurf]
 
-        surface_hold = np.zeros(len(self), dtype='bool')
+        surface_hold = np.zeros(len(self), dtype='mask')
         surface_hold[py_surfAtoms] = True
         self.arrays['surface'] = surface_hold
 
-        if bool:
+        if mask:
             return surface_hold
         else:
             return py_surfAtoms
 
     def get_nonsurface_atoms(self, bubblesize = 2.5):
-        """Takes an ASE atoms object and a bubblesize determining how concave a surface can be.
+        """ Determines the core / non-surface atoms of the nanocluster. 
+        Takes a bubblesize as an input determining how concave a surface can be (the default usually works well).
         Returns an array of indices of surface atoms.
+        
         """
-        # get clusgeo internal format for c-code
-        surface = self.get_surface_atoms(bool=True)
+        surface = self.get_surface_atoms(mask=True)
         return np.nonzero(np.logical_not(surface))[0]
 
     def _get_top_sites(self, distance=1.5):
-        """Takes an ASE atoms object, an array of surface atom indices and a distance as input
-        Returns a 2D-array of top site positions with the defined distance from the surface.
+        """Takes a distance as input.
+        Returns a 2D-array of top site positions with the defined distance from the adsorbing surface atom.
         """
         # get clusgeo internal format for c-code
         py_totalAN = len(self)
@@ -254,8 +258,8 @@ class ClusGeo(ase.Atoms):
         return self.site_positions[1]    
     
     def _get_bridge_sites(self, distance = 1.8):
-        """Takes an ASE atoms object,an array of surface atom indices and a distance as input
-        Returns a 2D-array of top site positions with the defined distance from the surface atoms.
+        """Takes a distance as input.
+        Returns a 2D-array of bridge site positions with the defined distance from the adsorbing surface atoms.
         """
         # get clusgeo internal format for c-code
         py_totalAN = len(self)
@@ -306,8 +310,8 @@ class ClusGeo(ase.Atoms):
     
     
     def _get_hollow_sites(self, distance= 1.8):
-        """Takes an ASE atoms object, an array of surface atom indices and a distance as input
-        Returns a 2D-array of top site positions with the defined distance from the surface atoms.
+        """Takes a distance as input.
+        Returns a 2D-array of hollow site positions with the defined distance from the adsorbing surface atoms.
         """
         # get clusgeo internal format for c-code
         py_totalAN = len(self)
@@ -356,6 +360,16 @@ class ClusGeo(ase.Atoms):
         return self.site_positions[3]
     
     def get_sites(self, sitetype=-1,  distance= 1.8):
+        """This method gets top, bridge or hollow adsorption sites on the nanocluster.
+        Takes two optional arguments: sitetype (1,2,3 or default = -1) and distance (float).
+        sitetype =  1  --> top
+                    2  --> bridge
+                    3  --> hollow
+                    -1 --> top, bridge and hollow
+        Returns a 2D-array of top, bridge, and/or hollow site positions with the 
+        defined distance from the adsorbing surface atom(s).
+        If sitetype = -1, top, bridge and hollow sites are concatenated in that order.
+        """
         if sitetype == -1:
             top = self._get_top_sites(distance=distance)
             bridge = self._get_bridge_sites(distance=distance)
@@ -375,7 +389,7 @@ class ClusGeo(ase.Atoms):
 
     def get_cluster_descriptor(self, only_surface = False, bubblesize = 2.5):
         """Takes a boolean only_surface as input, 
-        optionally bubblesize which defines how concave the surface can be.
+        and optionally a bubblesize which defines how concave the surface can be.
         Returns a 2D array with a descriptor (default is SOAP) feature vector on a row per atom 
         (per surface atom, if only_surface is set to True).
         """
@@ -393,7 +407,8 @@ class ClusGeo(ase.Atoms):
     def get_sites_descriptor(self, sitetype = -1):
         """Takes a sitetype as input. Valid are 1 (top), 2 (bridge) and 3 (hollow) 
         next to the default (default = -1 means top, bridge and hollow sites).  
-        Returns a 2D array with a descriptor (default is SOAP) feature vector on a row per specified site 
+        Returns a 2D array with a descriptor (default is SOAP) feature vector on a row per specified site.
+        If sitetype = -1, top, bridge and hollow sites are concatenated in that order.
         """
         if sitetype == -1:
             pos = np.vstack((self.site_positions[1], self.site_positions[2], self.site_positions[3]))
@@ -413,8 +428,10 @@ class ClusGeo(ase.Atoms):
         return descmatrix
 
     def get_unique_sites(self, sitetype = -1, threshold = 0.001, idx=[]):
-        """Takes a 2D-array descmatrix, a uniqueness-threshold and optionally a list of indices as input.
-        Returns a list of indices.
+        """Takes firstly a sitetype as input. Valid are 1 (top), 2 (bridge) and 3 (hollow) 
+        next to the default (default = -1 means top, bridge and hollow sites). Secondly, 
+        a threshold (float) of uniqueness and optionally a list of indices are taken as input.
+        Returns a list of indices of the unique sites.
         """
         if sitetype == -1:
             descmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
@@ -458,8 +475,12 @@ class ClusGeo(ase.Atoms):
 
 
     def get_ranked_sites(self, sitetype = -1, K = None, idx=[], greedy = False, is_safe = False):
-        """Takes a 2D-array descmatrix, a uniqueness-threshold and optionally a list of indices as input.
-        Returns a list of indices.
+        """Takes firstly a sitetype as input. Valid are 1 (top), 2 (bridge) and 3 (hollow) 
+        next to the default (default = -1 means top, bridge and hollow sites). Secondly, 
+        the sites are ranked up to K (int). If K = None, all sites are ranked. 
+        Thirdly, it optionally a list of indices as input, as well as the boolean argument, greedy and is_safe
+        which refer to the farthest point sampling algorithm used. 
+        Returns a list of indices of the ranked sites (of length K).
         """
         if sitetype == -1:
             descmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
@@ -497,7 +518,9 @@ class ClusGeo(ase.Atoms):
 
 
     def get_unique_surface_atoms(self, threshold = 0.001, idx=[]):
-        """same as get_unique_sites()"""
+        """Method similar to .get_unique_sites(). Takes a threshold (float) 
+        of uniqueness and optionally a list of indices as input.
+        Returns a list of indices of the unique surface atoms."""
         descmatrix = self.cluster_descriptor
         unique_lst = []
         if len(idx) == 0:

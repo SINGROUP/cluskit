@@ -43,6 +43,10 @@ def _get_distances_to_com(atoms):
 
 
 def _get_connectivity(atoms):
+    """Helper function to determine the connectivity between atoms in a crystalline (!)
+    nanocluster. Takes an ase atoms object as input.
+    Returns the connectivity matrix as squared array of ones (connected) and zeros.
+    """
     dmat = pdist(atoms.get_positions())
     min_pos = dmat.min()
     dmat = squareform(dmat)
@@ -56,6 +60,13 @@ def _get_connectivity(atoms):
 
 def get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
 	energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)]):
+    """Helper function to build a scaffold of ghost atoms in 
+    icosahedral, octahedral or wulff-shape. 
+    Takes a shape argument (string can be ico, octa or wulff) as well as 
+    the size argument i (int) and a latticeconstant.
+    When shape = 'wulff', it is required to give energies and surfaces as lists of equal length.
+    Returns a ClusGeo object with atom type 'X'.
+    """
     if shape == "ico":
         atoms = Icosahedron('X', noshells = i, latticeconstant = latticeconstant)
     elif shape == "octa":
@@ -76,16 +87,17 @@ def get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
 
 
 class Clusterer:
+    """ A class that generates binary nanoclusters given a bondmatrix and atom positions. 
+    It configures the atom types in the cluster using a Monte-Carlo algorithm and
+    pseudo-energies (taking into account core-shell segregation effect and different interaction
+    strenghts between atoms of different types.
+    """
 
     def __init__(self, bondmatrix, positions, ntypeB, eAA, eAB, eBB, com=None, coreEnergies=[0,0]):
 
         self.bondmat = bondmatrix
         self.positions = positions
         self.ntypeB = ntypeB
-
-        # list of possible atom types
-        # self.types = types
-
 
         # this will be used as center of the cluster
         if com == None:
@@ -120,7 +132,8 @@ class Clusterer:
     # --- end of init --- #
 
     def Evolve(self, kT, nsteps):
-
+        """ Monte-Carlo iterates nsteps with a temperature of kT.
+        """
         energyBefore = np.sum(self.coreEnergies[self.atomTypes] * self.coreness) # corification contribution
         nearenergymat = self.nearEnergies[self.atomTypes][:,self.atomTypes]
         energyBefore += np.sum(np.multiply(self.bondmat,nearenergymat))
@@ -144,14 +157,37 @@ class Clusterer:
 
 
     def Reset(self):
+        """Reset to initial state.
+        """
         self.atomTypes = np.zeros(self.positions.shape[0], dtype=np.int32)
         self.atomTypes[0:self.ntypeB] = 1
         np.random.shuffle(self.atomTypes)
 
 
     # --- end of Reset --- #
-def get_unique_clusters(eAA,eAB,eBB,cEA,cEB,typeA, typeB, ntypeB, n_clus = 1, clusSize=3,clusShape="ico"):
-    atoms = get_scaffold(shape = clusShape, i = clusSize)
+def get_unique_clusters(eAA,eAB,eBB,cEA,cEB,typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
+    """
+    Args:
+        eAA (float): pseudo-energy of A-A interaction
+        eAB (float): pseudo-energy of A-B interaction
+        eBB (float): pseudo-energy of B-B interaction
+        eEA (float): pseudo-energy of segregation of A into the core.
+        eEB (float): pseudo-energy of segregation of A into the core.
+        typeA (int): element of type A in atomic number of PSE.
+        typeB (int): element of type B in atomic number of PSE.
+        ntype (int): number of atoms of type B in cluster. This argument controls the composition.
+        n_clus (int): number of cluster to be returned.
+
+        clus_size (int): subject to change in the future, see. argument i from get_scaffold()
+        clus_shape (int): subject to change in the future, see. argument shape from get_scaffold()
+
+
+    Returns:
+        subject to change
+        --> eventually list of ClusGeo objects
+
+    """
+    atoms = get_scaffold(shape = clus_shape, i = clus_size)
     bondmatrix = _get_connectivity(atoms)
     desc = SOAP([typeA,typeB],6.0,6,6,sparse=False, periodic=False,average=True,crossover=True)
     final_atom_list = []
@@ -184,36 +220,28 @@ def get_unique_clusters(eAA,eAB,eBB,cEA,cEB,typeA, typeB, ntypeB, n_clus = 1, cl
     cluster.Reset()
     return final_atoms_list
 
-def get_segregated(typeA, typeB, ntypeB, n_clus = 1, clusSize=3,clusShape="ico"):
-    return get_unique_clusters(-1,1,-1,0,0,typeA,typeB,ntypeB,howMany, clusSize, clusShape)
-def get_core_shell(typeA, typeB, ntypeB, n_clus = 1, clusSize=3,clusShape="ico"):
-    return get_unique_clusters(0,0,0,1,0,typeA,typeB,ntypeB,howMany, clusSize, clusShape)
-def get_random(typeA, typeB, ntypeB, n_clus = 1, clusSize=3,clusShape="ico"):
-    return get_unique_clusters(0,0,0,0,0,typeA,typeB,ntypeB,howMany, clusSize, clusShape)
-def get_ordered(typeA, typeB, ntypeB, n_clus = 1, clusSize=3,clusShape="ico"):
-    return get_unique_clusters(1,-1,1,0,0,typeA,typeB,ntypeB,howMany, clusSize, clusShape)
+def get_segregated(typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
+    return get_unique_clusters(-1,1,-1,0,0,typeA,typeB,ntypeB,howMany, clus_size, clus_shape)
+
+def get_core_shell(typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
+    return get_unique_clusters(0,0,0,1,0,typeA,typeB,ntypeB,howMany, clus_size, clus_shape)
+
+def get_random(typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
+    return get_unique_clusters(0,0,0,0,0,typeA,typeB,ntypeB,howMany, clus_size, clus_shape)
+
+def get_ordered(typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
+    return get_unique_clusters(1,-1,1,0,0,typeA,typeB,ntypeB,howMany, clus_size, clus_shape)
 
 
-
-
-# types: list of atomic types
-
-# stoichiometry: list of int
-
-# phase-type (optional):
-# core-shell
-# ordered alloy
-# random alloy
-# segregated alloy
 # single-atom alloy
 
 
 
-# in utils ?
+# range of eAA,eAB,eBB,cEA,cEB 
 def get_unique_clusters_in_range():
 	pass
 
 
 if __name__=="__main__":
-   x = get_unique_ord(29,49,30,5,clusSize=4)
+   x = get_ordered(29,49,30,5,clus_size=4)
 

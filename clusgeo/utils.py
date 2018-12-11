@@ -56,17 +56,16 @@ def x2_to_x(pos, bondlength):
     updated_pos = np.array([py_x_new, py_y_new, py_z_new]).T
 
     updated_pos = updated_pos[:updated_totalAN]
-#    print(updated_totalAN)
 
     return updated_pos
 
 
 
-# needs to be updated
+# needs to be updated, possibly without pathlib (python 2 ?!)
 def write_all_sites(atoms, structure_name = "ref", path = "./"):
     """Takes an ASE atoms object and a string of the name of the structure.
     Returns None
-    It writes xyzfiles with top, edge and hollow sites into directories
+    It writes xyzfiles with top, bridge and hollow sites into directories
     """
     surfatoms = get_surface_atoms(atoms)
     topHxyz = get_top_sites(atoms, surfatoms)
@@ -77,7 +76,7 @@ def write_all_sites(atoms, structure_name = "ref", path = "./"):
     edgeH = ase.Atoms('H'*len(edgeHxyz), edgeHxyz)
     hollowH = ase.Atoms('H'*len(hollowHxyz), hollowHxyz)
 
-    # write structures with all top, edge and hollow sites
+    # write structures with all top, bridge and hollow sites
 
 
     pathlib.Path("top").mkdir(parents=True, exist_ok=True) 

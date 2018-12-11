@@ -154,8 +154,8 @@ class ClusGeo(ase.Atoms):
             atomic_numbers=atomic_numbers,
             periodic=False,
             rcut=5.0,
-            nmax=5,
-            lmax=5,
+            nmax=8,
+            lmax=6,
             sparse=False,
             )
 
@@ -201,7 +201,7 @@ class ClusGeo(ase.Atoms):
         py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
         py_surfAtoms = py_surfAtoms[:Nsurf]
 
-        surface_hold = np.zeros(len(self), dtype='mask')
+        surface_hold = np.zeros(len(self), dtype='bool')
         surface_hold[py_surfAtoms] = True
         self.arrays['surface'] = surface_hold
 
@@ -438,11 +438,6 @@ class ClusGeo(ase.Atoms):
         else:
             descmatrix = self.sites_descriptor[sitetype]
         unique_lst = []
-        if len(idx) == 0:
-            print("no ids given")
-        else:
-            print("using ids",len(idx), len(descmatrix) )
-            assert len(idx) == len(descmatrix), "give a list of indices of length %r" % len(descmatrix) 
 
         dist_matrix = squareform(pdist(descmatrix))
         K = descmatrix.shape[0]
@@ -474,7 +469,7 @@ class ClusGeo(ase.Atoms):
         return unique_ids
 
 
-    def get_ranked_sites(self, sitetype = -1, K = None, idx=[], greedy = False, is_safe = False):
+    def get_ranked_sites(self, sitetype = -1, K = None, idx=[], greedy = False, is_safe = True):
         """Takes firstly a sitetype as input. Valid are 1 (top), 2 (bridge) and 3 (hollow) 
         next to the default (default = -1 means top, bridge and hollow sites). Secondly, 
         the sites are ranked up to K (int). If K = None, all sites are ranked. 
@@ -487,17 +482,11 @@ class ClusGeo(ase.Atoms):
         else:
             descmatrix = self.sites_descriptor[sitetype]
         ranked_lst = []
-        if len(idx) == 0:
-            print("no ids given")
-        else:
-            print("using ids",len(idx), len(descmatrix) )
-            #assert len(idx) == len(descmatrix), "give a list of indices of length %r" % len(descmatrix) 
 
         if K == None:
             # run over all datapoints
             K = descmatrix.shape[0]
 
-        print("K for fps", K, "matrix for FPS", descmatrix.shape)    
         if is_safe:
             ranked_lst = _safe_fps(descmatrix, K, greedy = greedy)
         else:
@@ -511,23 +500,18 @@ class ClusGeo(ase.Atoms):
         else:
             ranked_ids = ranked_lst
 
-        assert len(ranked_ids) == len(set(ranked_ids)), "Error! Double counting in FPS! Use is_safe = True." 
+        #assert len(ranked_ids) == len(set(ranked_ids)), "Error! Double counting in FPS! Use is_safe = True." 
 
         return ranked_ids
 
 
 
-    def get_unique_surface_atoms(self, threshold = 0.001, idx=[]):
+    def get_unique_cluster_atoms(self, threshold = 0.001, idx=[]):
         """Method similar to .get_unique_sites(). Takes a threshold (float) 
         of uniqueness and optionally a list of indices as input.
-        Returns a list of indices of the unique surface atoms."""
+        Returns a list of indices of the unique cluster atoms."""
         descmatrix = self.cluster_descriptor
         unique_lst = []
-        if len(idx) == 0:
-            print("no ids given")
-        else:
-            print("using ids",len(idx), len(descmatrix) )
-            #assert len(idx) == len(descmatrix), "give a list of indices of length %r" % len(descmatrix) 
 
         dist_matrix = squareform(pdist(descmatrix))
         K = descmatrix.shape[0]

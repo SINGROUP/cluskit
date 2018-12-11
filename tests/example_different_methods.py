@@ -9,9 +9,9 @@ import ase
 import numpy as np
 from clusgeo import ClusGeo
 
-atoms = ase.io.read("au40cu40.xyz")
-#atoms = ase.io.read("Au-icosahedron-3.xyz")
-#atoms = ase.io.read("pureSymFe4icos.xyz")
+atoms = ase.io.read("example_structures/au40cu40.xyz")
+#atoms = ase.io.read("example_structures/Au-icosahedron-3.xyz")
+#atoms = ase.io.read("example_structures/pureSymFe4icos.xyz")
 
 cluster = ClusGeo(atoms)
 
@@ -41,10 +41,10 @@ print("hollow sites", sitepositions.shape)
 sitepositions = cluster.get_sites(-1)
 print("top, bridge, hollow sites", sitepositions)
 
-sitedescmatrix = cluster.get_sites_descriptor(sitetype = 1, NradBas=10, Lmax =9)
+sitedescmatrix = cluster.get_sites_descriptor(sitetype = 1)
 print("desc top sites shape", sitedescmatrix.shape)
 
-sitedescmatrix = cluster.get_sites_descriptor(sitetype = -1, NradBas=10, Lmax =9)
+sitedescmatrix = cluster.get_sites_descriptor(sitetype = -1)
 print("desc top, bridge, hollow sites shape", sitedescmatrix.shape)
 
 
@@ -62,18 +62,19 @@ unique_pos = sitepositions[unique_lst]
 adsorbates = ase.Atoms('H' * len(unique_lst), unique_pos)
 h_structure = atoms + adsorbates
 
-ase.io.write("uniqueH.xyz", h_structure)
+#ase.io.write("uniqueH.xyz", h_structure)
 
 print(unique_lst.shape)
 
 
 # unique surface sites testing
-unique_lst = cluster.get_unique_surface_atoms(idx=surface_atoms)
+unique_lst = cluster.get_unique_cluster_atoms(idx=surface_atoms)
 
 unique_pos = sitepositions[unique_lst]
 adsorbates = ase.Atoms('H' * len(unique_lst), unique_pos)
 h_structure = atoms + adsorbates
 
-ase.io.write("uniqueH.xyz", h_structure)
+#ase.io.write("uniqueH.xyz", h_structure)
+
 
 print(unique_lst.shape)

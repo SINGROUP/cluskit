@@ -5,7 +5,6 @@ from ctypes import *
 from scipy.spatial.distance import cdist, squareform, pdist
 
 import dscribe
-import soaplite
 
 _PATH_TO_CLUSGEO_SO = os.path.dirname(os.path.abspath(__file__))
 _CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libclusgeo3.*so*"]) )
@@ -112,7 +111,16 @@ class ClusGeo(ase.Atoms):
                 info=None,
                 surface=None):
 
-        super(self).__init__(symbols=symbols,
+        self.ase_object = super(ClusGeo, self).__init__(symbols=symbols,
+                    positions=positions, numbers=numbers,
+                    tags=tags, momenta=momenta, masses=masses,
+                    magmoms=magmoms, charges=charges,
+                    scaled_positions=scaled_positions,
+                    cell=cell, pbc=pbc, celldisp=celldisp,
+                    constraint=constraint,
+                    calculator=calculator,
+                    info=info)
+        self.ase_object = ase.Atoms(symbols=symbols,
                     positions=positions, numbers=numbers,
                     tags=tags, momenta=momenta, masses=masses,
                     magmoms=magmoms, charges=charges,
@@ -135,6 +143,19 @@ class ClusGeo(ase.Atoms):
         self.site_positions = {}
         self.cluster_descriptor = None
         self.sites_descriptor = {}
+
+        # setting standard descriptor
+        atomic_numbers = sorted(list(set(self.get_atomic_numbers())))
+        self.descriptor_setup = dscribe.descriptors.SOAP(
+            atomic_numbers=atomic_numbers,
+            periodic=False,
+            rcut=5.0,
+            nmax=5,
+            lmax=5,
+            sparse=False,
+            )
+
+
 
 
 
@@ -352,69 +373,67 @@ class ClusGeo(ase.Atoms):
     
 
 
-    def get_cluster_descriptor(self, only_surface = False, bubblesize = 2.5, 
-            rCut=5.0, NradBas=5, Lmax=5, crossOver=True, all_atomtypes=[]):
-        """Takes a boolean only_surface as input (next to SOAP-specific arguments).
-        Returns a 2D array with a soap feature vector on a row per atom 
+    def get_cluster_descriptor(self, only_surface = False, bubblesize = 2.5):
+        """Takes a boolean only_surface as input, 
+        optionally bubblesize which defines how concave the surface can be.
+        Returns a 2D array with a descriptor (default is SOAP) feature vector on a row per atom 
         (per surface atom, if only_surface is set to True).
-        bubblesize as an optional input defines how concave the surface can be.
         """
-
-        alp, bet = soaplite.genBasis.getBasisFunc(rCut, NradBas) # input:(rCut, NradBas)
-        soapmatrix = soaplite.get_soap_structure(self, alp, bet, rCut=rCut, NradBas=NradBas, Lmax=Lmax, crossOver=crossOver, all_atomtypes=all_atomtypes )
-        self.cluster_descriptor = soapmatrix
+        desc = self.descriptor_setup
+        descmatrix = desc.create(self.ase_object)
+        self.cluster_descriptor = descmatrix
         if only_surface == True:
             surfid = self.get_surface_atoms(bubblesize = bubblesize)
-            soapmatrix= soapmatrix[surfid]
-            return soapmatrix
+            descmatrix = descmatrix[surfid]
+            return descmatrix
         else:
             return self.cluster_descriptor
 
 
-    def get_sites_descriptor(self, sitetype = -1, rCut=5.0, NradBas=5, Lmax=5, 
-            crossOver=True, all_atomtypes=[]):
-        """Takes an ASE atoms object and a 2D-array of site positions (next to SOAP-specific arguments).
-        Returns a 2D array with a soap feature vector on a row per specified site 
+    def get_sites_descriptor(self, sitetype = -1):
+        """Takes a sitetype as input. Valid are 1 (top), 2 (bridge) and 3 (hollow) 
+        next to the default (default = -1 means top, bridge and hollow sites).  
+        Returns a 2D array with a descriptor (default is SOAP) feature vector on a row per specified site 
         """
         if sitetype == -1:
             pos = np.vstack((self.site_positions[1], self.site_positions[2], self.site_positions[3]))
         else:
             pos = self.site_positions[sitetype]
-        alp, bet = soaplite.genBasis.getBasisFunc(rCut, NradBas) # input:(rCut, NradBas)
-        soapmatrix = soaplite.get_soap_locals(self, pos, alp, bet, rCut=rCut, NradBas=NradBas, Lmax=Lmax, crossOver=crossOver, all_atomtypes=all_atomtypes )
+        desc = self.descriptor_setup
+        descmatrix = desc.create(self.ase_object, positions = pos.tolist())
         if sitetype == -1:
             n_top_sites = self.site_positions[1].shape[0]
             n_bridge_sites = self.site_positions[2].shape[0]
             n_hollow_sites = self.site_positions[3].shape[0]
-            self.sites_descriptor[1] = soapmatrix[:n_top_sites]
-            self.sites_descriptor[2] = soapmatrix[n_top_sites: n_top_sites + n_bridge_sites]
-            self.sites_descriptor[3] = soapmatrix[n_top_sites + n_bridge_sites :]
+            self.sites_descriptor[1] = descmatrix[:n_top_sites]
+            self.sites_descriptor[2] = descmatrix[n_top_sites: n_top_sites + n_bridge_sites]
+            self.sites_descriptor[3] = descmatrix[n_top_sites + n_bridge_sites :]
         else:
-            self.sites_descriptor[sitetype] = soapmatrix
-        return soapmatrix
+            self.sites_descriptor[sitetype] = descmatrix
+        return descmatrix
 
     def get_unique_sites(self, sitetype = -1, threshold = 0.001, idx=[]):
-        """Takes a 2D-array soapmatrix, a uniqueness-threshold and optionally a list of indices as input.
+        """Takes a 2D-array descmatrix, a uniqueness-threshold and optionally a list of indices as input.
         Returns a list of indices.
         """
         if sitetype == -1:
-            soapmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
+            descmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
         else:
-            soapmatrix = self.sites_descriptor[sitetype]
+            descmatrix = self.sites_descriptor[sitetype]
         unique_lst = []
         if len(idx) == 0:
             print("no ids given")
         else:
-            print("using ids",len(idx), len(soapmatrix) )
-            assert len(idx) == len(soapmatrix), "give a list of indices of length %r" % len(soapmatrix) 
+            print("using ids",len(idx), len(descmatrix) )
+            assert len(idx) == len(descmatrix), "give a list of indices of length %r" % len(descmatrix) 
 
-        dist_matrix = squareform(pdist(soapmatrix))
-        K = soapmatrix.shape[0]
-        n_features = soapmatrix.shape[1]
+        dist_matrix = squareform(pdist(descmatrix))
+        K = descmatrix.shape[0]
+        n_features = descmatrix.shape[1]
         fts_ids = np.zeros(K, dtype='int') -1
          
         #choosing random start point
-        fts_ids[0] = np.random.choice(soapmatrix.shape[0])
+        fts_ids[0] = np.random.choice(descmatrix.shape[0])
          
         #finding next k-1
         min_dist = dist_matrix[fts_ids[0]]
@@ -439,29 +458,29 @@ class ClusGeo(ase.Atoms):
 
 
     def get_ranked_sites(self, sitetype = -1, K = None, idx=[], greedy = False, is_safe = False):
-        """Takes a 2D-array soapmatrix, a uniqueness-threshold and optionally a list of indices as input.
+        """Takes a 2D-array descmatrix, a uniqueness-threshold and optionally a list of indices as input.
         Returns a list of indices.
         """
         if sitetype == -1:
-            soapmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
+            descmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
         else:
-            soapmatrix = self.sites_descriptor[sitetype]
+            descmatrix = self.sites_descriptor[sitetype]
         ranked_lst = []
         if len(idx) == 0:
             print("no ids given")
         else:
-            print("using ids",len(idx), len(soapmatrix) )
-            #assert len(idx) == len(soapmatrix), "give a list of indices of length %r" % len(soapmatrix) 
+            print("using ids",len(idx), len(descmatrix) )
+            #assert len(idx) == len(descmatrix), "give a list of indices of length %r" % len(descmatrix) 
 
         if K == None:
             # run over all datapoints
-            K = soapmatrix.shape[0]
+            K = descmatrix.shape[0]
 
-        print("K for fps", K, "matrix for FPS", soapmatrix.shape)    
+        print("K for fps", K, "matrix for FPS", descmatrix.shape)    
         if is_safe:
-            ranked_lst = _safe_fps(soapmatrix, K, greedy = greedy)
+            ranked_lst = _safe_fps(descmatrix, K, greedy = greedy)
         else:
-            ranked_lst = _fps(soapmatrix, K, greedy = greedy)
+            ranked_lst = _fps(descmatrix, K, greedy = greedy)
 
 
 
@@ -479,21 +498,21 @@ class ClusGeo(ase.Atoms):
 
     def get_unique_surface_atoms(self, threshold = 0.001, idx=[]):
         """same as get_unique_sites()"""
-        soapmatrix = self.cluster_descriptor
+        descmatrix = self.cluster_descriptor
         unique_lst = []
         if len(idx) == 0:
             print("no ids given")
         else:
-            print("using ids",len(idx), len(soapmatrix) )
-            #assert len(idx) == len(soapmatrix), "give a list of indices of length %r" % len(soapmatrix) 
+            print("using ids",len(idx), len(descmatrix) )
+            #assert len(idx) == len(descmatrix), "give a list of indices of length %r" % len(descmatrix) 
 
-        dist_matrix = squareform(pdist(soapmatrix))
-        K = soapmatrix.shape[0]
-        n_features = soapmatrix.shape[1]
+        dist_matrix = squareform(pdist(descmatrix))
+        K = descmatrix.shape[0]
+        n_features = descmatrix.shape[1]
         fts_ids = np.zeros(K, dtype='int') -1
          
         #choosing random start point
-        fts_ids[0] = np.random.choice(soapmatrix.shape[0])
+        fts_ids[0] = np.random.choice(descmatrix.shape[0])
          
         #finding next k-1
         min_dist = dist_matrix[fts_ids[0]]

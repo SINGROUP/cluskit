@@ -27,10 +27,10 @@ print("non-surface atoms", len(nonSurf))
 #atoms.set_atomic_numbers(atnum)
 #ase.io.write("test.xyz", atoms)
 
-soapmatrix = cluster.get_cluster_descriptor(only_surface=False, bubblesize=2.7, NradBas=10, Lmax =9)
-print("get_cluster_descriptor" , soapmatrix.shape)
-soapmatrix = cluster.get_cluster_descriptor(only_surface=True, bubblesize=2.7, NradBas=10, Lmax =9)
-print("get_cluster_descriptor, only surface", soapmatrix.shape)
+descmatrix = cluster.get_cluster_descriptor(only_surface=False, bubblesize=2.7)
+print("get_cluster_descriptor" , descmatrix.shape)
+descmatrix = cluster.get_cluster_descriptor(only_surface=True, bubblesize=2.7)
+print("get_cluster_descriptor, only surface", descmatrix.shape)
 
 sitepositions = cluster.get_sites(1)
 print("top sites", sitepositions.shape)
@@ -41,11 +41,11 @@ print("hollow sites", sitepositions.shape)
 sitepositions = cluster.get_sites(-1)
 print("top, bridge, hollow sites", sitepositions)
 
-sitesoapmatrix = cluster.get_sites_descriptor(sitetype = 1, NradBas=10, Lmax =9)
-print("soap top sites shape", sitesoapmatrix.shape)
+sitedescmatrix = cluster.get_sites_descriptor(sitetype = 1, NradBas=10, Lmax =9)
+print("desc top sites shape", sitedescmatrix.shape)
 
-sitesoapmatrix = cluster.get_sites_descriptor(sitetype = -1, NradBas=10, Lmax =9)
-print("soap top, bridge, hollow sites shape", sitesoapmatrix.shape)
+sitedescmatrix = cluster.get_sites_descriptor(sitetype = -1, NradBas=10, Lmax =9)
+print("desc top, bridge, hollow sites shape", sitedescmatrix.shape)
 
 
 # fps ranking testing

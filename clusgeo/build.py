@@ -23,8 +23,8 @@ import copy
 
 #The following are BCC/HCP lattice constants taken from 
 #http://periodictable.com/Properties/A/LatticeConstants.html 
-#They are multiplied by a factor of √2, since ASE will divide the 
-#constant by √2 to get the distance between FCC (111) planes.
+#They are multiplied by a factor of sqrt 2, since ASE will divide the 
+#constant by sqrt 2 to get the distance between FCC (111) planes.
 
 tm_dict = {'Sc': 4.6796, 'Ti': 4.1731, 'V': 4.2851, 'Cr': 4.1154, 'Mn': 1.2604, 'Fe': 4.0538, 
            'Co': 3.5456, 'Zn': 3.7687, 'Y': 5.1582, 'Zr': 4.5707, 'Nb': 4.6675, 'Mo': 4.4505, 

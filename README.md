@@ -1,4 +1,4 @@
-# ClusGeo3.0
+# ClusGeo4
 
 [![Build Status](https://travis-ci.org/SINGROUP/ClusGeo3.0.svg?branch=master)](https://travis-ci.org/SINGROUP/ClusGeo3.0)
 [![Coverage Status](https://coveralls.io/repos/github/SINGROUP/ClusGeo3.0/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/ClusGeo3.0?branch=master)

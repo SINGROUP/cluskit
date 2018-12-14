@@ -14,7 +14,7 @@ atoms = ase.io.read("example_structures/au40cu40.xyz")
 #atoms = ase.io.read("example_structures/pureSymFe4icos.xyz")
 
 cluster = ClusGeo(atoms)
-
+exit(1)
 surface_atoms = cluster.get_surface_atoms(bubblesize = 2.7)
 
 nonSurf = cluster.get_nonsurface_atoms(bubblesize = 2.7)

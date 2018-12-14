@@ -21,6 +21,7 @@ suite = unittest.TestSuite()
 # Add tests to the test suite
 suite.addTests(loader.loadTestsFromModule(generaltests))
 suite.addTests(loader.loadTestsFromModule(cluster))
+suite.addTests(loader.loadTestsFromModule(build))
 
 # Initialize a runner, pass it the suite and run it
 runner = unittest.TextTestRunner(verbosity=3)

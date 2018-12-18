@@ -221,16 +221,16 @@ def get_unique_clusters(eAA,eAB,eBB,cEA,cEB,typeA, typeB, ntypeB, n_clus = 1, cl
     return final_atoms_list
 
 def get_segregated(typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
-    return get_unique_clusters(-1,1,-1,0,0,typeA,typeB,ntypeB,howMany, clus_size, clus_shape)
+    return get_unique_clusters(-1,1,-1,0,0,typeA,typeB,ntypeB,n_clus, clus_size, clus_shape)
 
 def get_core_shell(typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
-    return get_unique_clusters(0,0,0,1,0,typeA,typeB,ntypeB,howMany, clus_size, clus_shape)
+    return get_unique_clusters(0,0,0,1,0,typeA,typeB,ntypeB,n_clus, clus_size, clus_shape)
 
 def get_random(typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
-    return get_unique_clusters(0,0,0,0,0,typeA,typeB,ntypeB,howMany, clus_size, clus_shape)
+    return get_unique_clusters(0,0,0,0,0,typeA,typeB,ntypeB,n_clus, clus_size, clus_shape)
 
 def get_ordered(typeA, typeB, ntypeB, n_clus = 1, clus_size=3,clus_shape="ico"):
-    return get_unique_clusters(1,-1,1,0,0,typeA,typeB,ntypeB,howMany, clus_size, clus_shape)
+    return get_unique_clusters(1,-1,1,0,0,typeA,typeB,ntypeB,n_clus, clus_size, clus_shape)
 
 
 # single-atom alloy

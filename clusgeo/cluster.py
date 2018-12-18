@@ -88,6 +88,9 @@ def _safe_fps(pts, K, greedy=False):
     return fts_ids
 
 def _rank_fps(pts, K, greedy=False, is_safe = False):
+    if K == None:
+        # run over all datapoints
+        K = pts.shape[0]
     if is_safe:
         ranked_lst = _safe_fps(pts, K, greedy = greedy)
     else:

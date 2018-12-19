@@ -31,14 +31,12 @@ tm_dict = {'Sc': 4.6796, 'Ti': 4.1731, 'V': 4.2851, 'Cr': 4.1154, 'Mn': 1.2604, 
            'Tc': 3.8679, 'Ru': 3.8267, 'Cd': 4.2135, 'Hf': 4.5204, 'Ta': 4.6687, 'W': 4.4763, 
            'Re': 3.9046, 'Os': 3.8670, 'Hg': 4.2497}
 
-
-### DEFINE ###
+###
 
 # helper functions
 def _get_distances_to_com(atoms):
     center_of_mass = atoms.get_center_of_mass()
     distances = cdist(atoms.get_positions(), center_of_mass.reshape((-1,3)))
-    print(distances.shape)
     return distances
 
 
@@ -61,9 +59,10 @@ def _get_connectivity(positions, max_bondlength = None):
 
     return bond_matrix
 
+###
 
 def get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
-	energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)]):
+    energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)]):
     """Helper function to build a scaffold of ghost atoms in 
     icosahedral, octahedral or wulff-shape. 
     Takes a shape argument (string can be ico, octa or wulff) as well as 
@@ -156,7 +155,7 @@ class Clusterer:
                 self.atomTypes = tmp
 
         timeAft = time.time()
-#        print(timeAft - timeBef)
+    #        print(timeAft - timeBef)
     # --- end of Evolve --- #
 
 
@@ -260,12 +259,10 @@ class Scaffold(ase.Atoms):
             ntype (int): number of atoms of type B in cluster. This argument controls the composition.
             n_clus (int): number of cluster to be returned.
 
-
         Returns:
-            subject to change
-            --> eventually list of ClusGeo objects
-
+            list of ClusGeo objects
         """
+
         # get default values where needed.
 
         if not typeA:
@@ -282,12 +279,9 @@ class Scaffold(ase.Atoms):
         # making sure atomic numbers are adapted by descriptor
         desc.atomic_numbers = [typeA, typeB]
 
-        print("descriptor", desc.atomic_numbers)
-
         final_atoms_list = []
         
         positions = atoms.get_positions()
-        #print(positions)
         coreEnergies = [ cEA, cEB ]
         
         atoms_list = []
@@ -306,20 +300,13 @@ class Scaffold(ase.Atoms):
             new_atoms = ase.Atoms(numbers=actual_types, positions=positions)
             atoms_list.append(new_atoms)
 
-        print("atomic_numbers", atoms.get_atomic_numbers())
-        print("actual_types", actual_types)
-        print("atoms list", atoms_list)
-        
-        x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=True)
 
-        print("FPS")
-        print(x.shape)
-
-        print(x)
+        x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=False)
 
         ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False, is_safe = True)
         for i in range(0,n_clus):
-            final_atoms_list.append(atoms_list[ranks[i]])
+            clusgeo_atoms = ClusGeo(atoms_list[ranks[i]])
+            final_atoms_list.append(clusgeo_atoms)
 
         cluster.Reset()
         return final_atoms_list
@@ -342,8 +329,115 @@ class Scaffold(ase.Atoms):
 
 
     # range of eAA,eAB,eBB,cEA,cEB 
-    def get_unique_clusters_in_range():
-    	pass
+    def get_unique_clusters_in_range(self,
+        eAA = [-1,1], eAB = [-1,1], eBB = [-1,1], cEA = [-1,1], cEB = [-1,1],
+        typeA = None, typeB = None, ntypeB = None, n_clus = 1):
+        """
+        Args:
+            eAA (list of 2 floats): pseudo-energy of A-A interaction
+            eAB (list of 2 floats): pseudo-energy of A-B interaction
+            eBB (list of 2 floats): pseudo-energy of B-B interaction
+            eEA (list of 2 floats): pseudo-energy of segregation of A into the core.
+            eEB (list of 2 floats): pseudo-energy of segregation of A into the core.
+            typeA (int): element of type A in atomic number of PSE.
+            typeB (int): element of type B in atomic number of PSE.
+            ntype (int): number of atoms of type B in cluster. This argument controls the composition.
+            n_clus (int): number of cluster to be returned.
+
+        Returns:
+            list (ClusGeo): Most dissimilar clusters in the given Pseudo-energy
+            range. 
+        """
+
+        # get default values where needed.
+
+        if not typeA:
+            typeA = self.default_A
+        if  not typeB:
+            typeB = self.default_B
+        if  not ntypeB:
+            ntypeB = self.default_n_B
+
+
+        atoms = self.ase_object
+        bond_matrix = self.bond_matrix
+        desc = self.descriptor_setup
+        # making sure atomic numbers are adapted by descriptor
+        desc.atomic_numbers = [typeA, typeB]
+
+        final_atoms_list = []
+        atoms_list = []
+
+        positions = atoms.get_positions()
+        
+
+        # discretizing pseudo-energy search space
+        steps = [2,2,2,2,2]
+        ranges = np.array([
+            eAA[1] - eAA[0],
+            eAB[1] - eAB[0],
+            eBB[1] - eBB[0],
+            cEA[1] - cEA[0],
+            cEB[1] - cEB[0],
+            ], dtype='float')
+
+        step_sizes = ranges.copy()
+
+        for i in range(100):
+            # internal numpy use of complex number, see np.mgrid 
+            grid = np.mgrid[
+                eAA[0]:eAA[1]:complex(0,steps[0]),
+                eAB[0]:eAB[1]:complex(0,steps[0]),
+                eBB[0]:eBB[1]:complex(0,steps[0]),
+                cEA[0]:cEA[1]:complex(0,steps[0]),
+                cEB[0]:cEB[1]:complex(0,steps[0]),
+            ]
+
+            # check size
+            size = grid[0].ravel().shape[0]
+
+            if size < n_clus:
+                idx = np.argmax(step_sizes)
+                steps[idx] +=1
+                step_sizes[idx] = (ranges[idx] - 1.0) / steps[idx]
+            else:
+                break
+
+        # looping over different pseudo-energies
+
+        grid_1, grid_2, grid_3, grid_4, grid_5 = grid
+        grid_points = np.vstack([grid_1.ravel(), grid_2.ravel(),
+            grid_3.ravel(), grid_4.ravel(), grid_5.ravel()]).transpose()
+
+        # 5 floats per grid_point: pseudo-energies eAA, eAB, eBB, cEA and cEB
+        #print('shape grid points', grid_points.shape)
+        for grid_point in grid_points:
+            coreEnergies = [ grid_point[3], grid_point[4] ]
+        
+            cluster = Clusterer(bond_matrix, positions, ntypeB, grid_point[0], grid_point[1], grid_point[2], com=None, coreEnergies=coreEnergies)
+        
+            kT = self.evolve_temperature
+            nsteps =  self.evolve_n_steps
+
+            cluster.Evolve(kT, nsteps)
+            actual_types = cluster.atomTypes.copy()
+            actual_types[actual_types == 0] = typeA
+            actual_types[actual_types == 1] = typeB
+        
+            atoms.set_atomic_numbers(actual_types)
+            new_atoms = ase.Atoms(numbers=actual_types, positions=positions)
+            atoms_list.append(new_atoms)
+
+
+        x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=False)
+
+        ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False, is_safe = True)
+        for i in range(0,n_clus):
+            clusgeo_atoms = ClusGeo(atoms_list[ranks[i]])
+            final_atoms_list.append(clusgeo_atoms)
+
+        cluster.Reset()
+        return final_atoms_list
 
 
 if __name__=="__main__":
@@ -361,15 +455,14 @@ if __name__=="__main__":
     #view(scaffold_from_ase)
     #view(scaffold)
 
-    print(scaffold)
+    #atoms_list = scaffold_from_ase.get_unique_clusters(0,0,0,1,0, typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
+    #atoms_list = scaffold.get_unique_clusters(0,0,0,1,0, typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
 
-    atoms_list = scaffold_from_ase.get_unique_clusters(0,0,0,1,0, typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-    atoms_list = scaffold.get_unique_clusters(0,0,0,1,0, typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
+    #atoms_list = scaffold.get_unique_clusters_in_range(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 10)
 
+    #scaffold.get_segregated(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
+    #scaffold.get_core_shell(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
 
-
-    scaffold.get_ordered(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-    scaffold.get_random(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-    scaffold.get_segregated(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-    scaffold.get_core_shell(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
+    #for atoms in atoms_list:
+    #    view(atoms)
 

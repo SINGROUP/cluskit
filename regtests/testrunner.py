@@ -12,7 +12,7 @@ import unittest
 # Import the test modules
 import generaltests
 import cluster
-
+import build
 
 # Initialize the test suite
 loader = unittest.TestLoader()

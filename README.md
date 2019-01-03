@@ -4,76 +4,104 @@
 [![Coverage Status](https://coveralls.io/repos/github/SINGROUP/ClusGeo3.0/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/ClusGeo3.0?branch=master)
 
 
-ClusGeo is a python package dedicated to surface science on nanoclusters. ClusGeo currently focuses on the population of given nanoclusters with adsorbates. Furthermore, at a later stage it will also feature the generation of a multitude of different types of nanoclusters.
+ClusGeo is a python package dedicated to surface science on nanoclusters. ClusGeo currently focuses on the population of given nanoclusters with adsorbates. Furthermore, it also features the generation of a multitude of different types of nanoclusters.
 
 Sites on the nanoclusters are classified as top, bridge and hollow. One can automatically detect surface atoms as well as those sites on arbitrary nanoclusters. Using a structural descriptor those surface atoms or sites can be compared with each other with respect to their (dis)similarity.
 
-ClusGeo is especially designed for creating many samples of adsorbates on a variety of nanoclusters without the need of visually checking the structures. It is complementary to the python package for surface slabs KatKit https://github.com/SUNCAT-Center/CatKit
+ClusGeo is especially designed for creating many samples of adsorbates on a variety of nanoclusters without the need of visually checking the structures. It is complementary to the python package for surface slabs CatKit [https://github.com/SUNCAT-Center/CatKit](https://github.com/SUNCAT-Center/CatKit)
 
-OLD DOCUMENTATION!
-breaking changes since then!
-will be updated in the near future...
 
-Currently ClusGeo has limited capabilities which will be enhanced in the near future:
+There is no comprehensive documentation yet at this stage, however, the example in the folder examples covers many features. 
 
-## clusgeo.surface.get_surface_atoms(...)
+Here is a list of the packages current capabilities:
+- Generate a scaffold structure (atomic types undetermined) of Icosahedral, Octahedral or Wulff-shape.
+- Generate a family of binary clusters (AB) for given pseudo-energy parameters concerning interactions between A and B as well as core-shell segregation.
+- Generate a family of the most dissimilar clusters for a range of pseudo-energies
+- Get surface atom indices
+- Get nonsurface atom indices
+- Get all possible sites of class top,bridge or hollow.
 
-Gets surface atom indices
+- Eliminate a single atom adsorbate as soon as it is too close to another.=
 
-## clusgeo.surface.get_non_surf_atoms(...)
+- Get a matrix of size NxM where N is the number of atoms in the cluster and M is the number of descriptor features
 
-Gets nonsurface atom indices
+- Given a cluster and position of adsorbates, get a matrix of size NxM where N is the number of adsorbates on the cluster and M is the number of descriptor features
 
-## clusgeo.surface.get_top_sites(...)  as well as _edge_ and _hollow_
-
-Gets all possible sites of class top,bridge or hollow.
-
-## clusgeo.surface.x2_to_x(...)
-
-Eliminates a single atom adsorbate as soon as it is too close to another.
-
-## clusgeo.surface.write_all_sites(...)
-
-Utility function to write xyz files in a directory structure split by top, bridge and hollow.
-
-## clusgeo.environment.get_soap_cluster(...)
-
-Get a matrix of size NxM where N is the number of atoms in the cluster and M is the number of SOAP features
-
-## clusgeo.environment.get_soap_sites(...)
-
-Given a cluster and position of adsorbates, get a matrix of size NxM where N is the number of adsorbates on the cluster and M is the number of SOAP features
-
-## clusgeo.environment.get_unique_sites(...)
-
-Given a certain threshold, eliminate too similar sites in SOAP feature space.
-
-## clusgeo.environment.rank_sites(...)
-
-Similar to .get_unique_sites(...) but instead of giving a threshold, all sites can be ranked or optionally only the top K can be determined. Ranking is done using farthest point sampling.
+- Given a certain threshold, eliminate too similar sites in descriptor feature space.
+- Similar to unique sites, but instead of giving a threshold, all sites can be ranked or optionally only the top K can be determined. Ranking is done using farthest point sampling.
 
 
 # Example
 
-example coming soon
+An extensive example is available at examples/example_different_methods.py
+
+Here is a quick example to get you started!
+```python
+import numpy as np
+import ase
+from ase.build import molecule
+from ase.cluster.icosahedron import Icosahedron
+import clusgeo
+
+### Make a clusgeo object from ase ###
+atoms = Icosahedron('Cu', noshells=3)
+copper_cluster = clusgeo.ClusGeo(atoms)
+
+### Two ways to make a scaffold ###
+scaffold_from_ase = clusgeo.build.Scaffold(atoms)
+
+scaffold = clusgeo.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
+    energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)])
+
+
+### Build binary clusters ###
+cluster_list = scaffold.get_segregated(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 2)
+print(len(cluster_list))
+
+### Get unique top adsorption sites ###
+cluster = cluster_list[0]
+sitepositions = cluster.get_sites(1)
+sitedescmatrix = cluster.get_sites_descriptor(sitetype = 1)
+
+unique_lst = cluster.get_unique_sites(sitetype = 1, threshold = 0.01)
+
+unique_pos = sitepositions[unique_lst]
+adsorbates = ase.Atoms('H' * len(unique_lst), unique_pos)
+h_structure = atoms + adsorbates
+
+print(unique_lst.shape)
+
+ase.visualize.view(h_structure)
+```
 
 # Dependencies and installation
 
-ClusGeo depends heavily on ASE, numpy, scipy and to a smaller degree on soaplite. soaplite is an implementation of the SOAP descriptor. This dependency will later be changed to the descriptor package dscribe
+All dependencies are install automatically. ClusGeo depends heavily on ASE, numpy, scipy and to a smaller degree on dscribe. The latter dependency is a descriptor package which you should be familiar with when you use descriptors other than the default method of ClusGeo. DScribe is a python package for creating machine learning descriptors for atomistic systems. For more details and tutorials, visit the homepage at:
+[https://singroup.github.io/dscribe/](https://singroup.github.io/dscribe/)
+
+
 
 The newest version is available from github.
-Clone the repository. Inside it run "python3 setup.py install"
+Clone the repository. Inside it run 
+```sh
+python3 setup.py install
+```
 
-An older version is available through "pip install clusgeo"
+A stable version is available through 
+```sh
+pip install clusgeo
+```
 
 
 # Tests
 
-In the folder tests the script test.py runs simple tasks on a sample cluster such as spotting surface atoms, finding top, bridge and hollow sites, ranking sites and determining unique sites.
+ClusGeo now includes regtests and code coverage. 
 
-We are planning to include regtests at a later stage
+They range from cluster generation, cluster similarity, spotting surface atoms, finding top, bridge and hollow sites, ranking sites to determining unique sites.
+
 
 # Contributors
 
 Eiaki Morooka
 Marc Jäger
+Yashasvi Ranawat

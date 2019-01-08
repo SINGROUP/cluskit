@@ -115,6 +115,9 @@ class UniquenessTests(unittest.TestCase):
         unique_lst = cluster.get_unique_sites(sitetype = 3, threshold = 0.01, idx=[])
         self.assertTrue(len(unique_lst) == 2)
 
+    def test_idx(self):
+        pass
+
 
 class RankingTests(unittest.TestCase):
     """ Tests functionality of the ranking method
@@ -128,6 +131,10 @@ class RankingTests(unittest.TestCase):
         self.assertTrue(len(ranked_ids) == len(set(ranked_ids)))
         ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = False)
         self.assertTrue(len(ranked_ids) == len(set(ranked_ids)))
+
+    def test_idx(self):
+        pass
+
 
 
 if __name__ == '__main__':

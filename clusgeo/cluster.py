@@ -469,3 +469,13 @@ class ClusGeo(ase.Atoms):
 if __name__ == "__main__":
     print("main")
     import time
+
+    pts = np.random.rand(1000,30)
+    
+    for is_greedy in [True, False]:
+        t0 = time.time()
+        for i in range(10):
+            fps = _rank_fps(pts, K = None, greedy=is_greedy)
+        
+        t1 = time.time()
+        print("time", is_greedy, t1 -t0)

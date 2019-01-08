@@ -10,59 +10,7 @@ _PATH_TO_CLUSGEO_SO = os.path.dirname(os.path.abspath(__file__))
 _CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libclusgeo3.*so*"]) )
 _LIBCLUSGEO = CDLL(_CLUSGEO_SOFILES[0])
 
-
-def _format_ase2clusgeo(obj, all_atomtypes=[]):
-    """ Takes an ase Atoms object and returns numpy arrays and integers
-    which are read by the internal clusgeo. Apos is currently a flattened
-    out numpy array
-    """
-    #atoms metadata
-    totalAN = len(obj)
-    if all_atomtypes:
-        atomtype_set = set(all_atomtypes)
-    else:
-        atomtype_set = set(obj.get_atomic_numbers())
-    num_atomtypes = len(atomtype_set)
-
-    atomtype_lst = np.sort(list(atomtype_set))
-    n_atoms_per_type_lst = []
-    pos_lst = []
-    for atomtype in atomtype_lst:
-        condition = obj.get_atomic_numbers() == atomtype
-        pos_onetype = obj.get_positions()[condition]
-        n_onetype = pos_onetype.shape[0]
-
-        # store data in lists
-        pos_lst.append(pos_onetype)
-        n_atoms_per_type_lst.append(n_onetype)
-
-    typeNs = n_atoms_per_type_lst
-    Ntypes = len(n_atoms_per_type_lst)
-    atomtype_lst
-    Apos = np.concatenate(pos_lst).ravel()
-    return Apos, typeNs, Ntypes, atomtype_lst, totalAN
-
-
 def _fps(pts, K, greedy=False):
-    dist_matrix = squareform(pdist(pts))
-    fts_ids = np.zeros(K, dtype='int')
-     
-    #choosing random start point
-    fts_ids[0] = np.random.choice(pts.shape[0])
-     
-    #finding next k-1
-    if greedy:
-        for i in range(1, K):
-            fts_ids[i] = np.argmax(dist_matrix[fts_ids[i-1]])
-    else:
-        min_dist = dist_matrix[fts_ids[0]]
-        for i in range(1, K):
-            fts_ids[i] = np.argmax(min_dist)
-            min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])
-     
-    return fts_ids
-
-def _safe_fps(pts, K, greedy=False):
     dist_matrix = squareform(pdist(pts))
     fts_ids = np.zeros(K, dtype='int') -1
      
@@ -87,18 +35,48 @@ def _safe_fps(pts, K, greedy=False):
                 min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])   
     return fts_ids
 
-def _rank_fps(pts, K, greedy=False, is_safe = False):
+def _rank_fps(pts, K, greedy=False):
     if K == None:
         # run over all datapoints
         K = pts.shape[0]
-    if is_safe:
-        ranked_lst = _safe_fps(pts, K, greedy = greedy)
-    else:
-        ranked_lst = _fps(pts, K, greedy = greedy)
+    ranked_lst = _fps(pts, K, greedy = greedy)
 
     return ranked_lst
 
+def _unique_selection(descmatrix, threshold):
+    dist_matrix = squareform(pdist(descmatrix))
+    K = descmatrix.shape[0]
+    n_features = descmatrix.shape[1]
+    fts_ids = np.zeros(K, dtype='int') -1
+     
+    #choosing random start point
+    fts_ids[0] = np.random.choice(descmatrix.shape[0])
+     
+    #finding next k-1
+    min_dist = dist_matrix[fts_ids[0]]
+    for i in range(1, K):
+        if min_dist.max() / (1.0 * n_features) < threshold:
+            # early stop based on threshold
+            fts_ids = fts_ids[:i]
+            break
+        else:
+            fts_ids[i] = np.argmax(min_dist)
+            min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])   
+    return fts_ids
 
+def _constrain_descmatrix_to_selected_ids(descmatrix, idx):
+    idx = np.array(idx, dtype = int)
+    if len(idx) != 0:
+        return descmatrix[idx]
+    else:
+        return descmatrix
+
+def _translate_to_selected_ids(unique_ids, idx):
+    idx = np.array(idx, dtype = int)
+    if len(idx) != 0:
+        return idx[unique_ids]
+    else:
+        return unique_ids
 
 
 class ClusGeo(ase.Atoms):
@@ -150,6 +128,7 @@ class ClusGeo(ase.Atoms):
         self.site_positions = {}
         self.cluster_descriptor = None
         self.sites_descriptor = {}
+        self.surface_atoms = np.nonzero(self.arrays['surface'])[0]
 
         # setting standard descriptor
         atomic_numbers = sorted(list(set(self.get_atomic_numbers())))
@@ -161,7 +140,6 @@ class ClusGeo(ase.Atoms):
             lmax=6,
             sparse=False,
             )
-
 
 
 
@@ -389,7 +367,6 @@ class ClusGeo(ase.Atoms):
             raise ValueError("sitetype not understood. Use -1, 1, 2 or 3")
     
 
-
     def get_cluster_descriptor(self, only_surface = False, bubblesize = 2.5):
         """Takes a boolean only_surface as input, 
         and optionally a bubblesize which defines how concave the surface can be.
@@ -440,70 +417,34 @@ class ClusGeo(ase.Atoms):
             descmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
         else:
             descmatrix = self.sites_descriptor[sitetype]
-        unique_lst = []
 
-        dist_matrix = squareform(pdist(descmatrix))
-        K = descmatrix.shape[0]
-        n_features = descmatrix.shape[1]
-        fts_ids = np.zeros(K, dtype='int') -1
-         
-        #choosing random start point
-        fts_ids[0] = np.random.choice(descmatrix.shape[0])
-         
-        #finding next k-1
-        min_dist = dist_matrix[fts_ids[0]]
-        for i in range(1, K):
-            if min_dist.max() / (1.0 * n_features) < threshold:
-                # early stop based on threshold
-                fts_ids = fts_ids[:i]
-                break
-            else:
-                fts_ids[i] = np.argmax(min_dist)
-                min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])   
-        return fts_ids
+        descmatrix = _constrain_descmatrix_to_selected_ids(descmatrix, idx)
 
+        unique_ids = _unique_selection(descmatrix = descmatrix, threshold = threshold)
 
-        idx = np.array(idx, dtype = int)
-        if len(idx) != 0:
-            unique_ids = idx[unique_lst]
-        else:
-            unique_ids = unique_lst
+        unique_ids = _translate_to_selected_ids(unique_ids, idx)
 
         return unique_ids
 
 
-    def get_ranked_sites(self, sitetype = -1, K = None, idx=[], greedy = False, is_safe = True):
+    def get_ranked_sites(self, sitetype = -1, K = None, idx=[], greedy = False):
         """Takes firstly a sitetype as input. Valid are 1 (top), 2 (bridge) and 3 (hollow) 
         next to the default (default = -1 means top, bridge and hollow sites). Secondly, 
         the sites are ranked up to K (int). If K = None, all sites are ranked. 
-        Thirdly, it optionally a list of indices as input, as well as the boolean argument, greedy and is_safe
-        which refer to the farthest point sampling algorithm used. 
+        Thirdly, it optionally a list of indices as input, as well as the boolean argument greedy 
+        which refers to the farthest point sampling algorithm used. 
         Returns a list of indices of the ranked sites (of length K).
         """
         if sitetype == -1:
             descmatrix = np.vstack((self.sites_descriptor[1], self.sites_descriptor[2], self.sites_descriptor[3]))
         else:
             descmatrix = self.sites_descriptor[sitetype]
-        ranked_lst = []
 
-        if K == None:
-            # run over all datapoints
-            K = descmatrix.shape[0]
+        descmatrix = _constrain_descmatrix_to_selected_ids(descmatrix, idx)
 
-        if is_safe:
-            ranked_lst = _safe_fps(descmatrix, K, greedy = greedy)
-        else:
-            ranked_lst = _fps(descmatrix, K, greedy = greedy)
+        ranked_ids = _rank_fps(descmatrix, K, greedy=False)
 
-
-
-        idx = np.array(idx, dtype = int)
-        if len(idx) != 0:
-            ranked_ids = idx[ranked_lst]
-        else:
-            ranked_ids = ranked_lst
-
-        #assert len(ranked_ids) == len(set(ranked_ids)), "Error! Double counting in FPS! Use is_safe = True." 
+        ranked_ids = _translate_to_selected_ids(ranked_ids, idx)
 
         return ranked_ids
 
@@ -514,34 +455,12 @@ class ClusGeo(ase.Atoms):
         of uniqueness and optionally a list of indices as input.
         Returns a list of indices of the unique cluster atoms."""
         descmatrix = self.cluster_descriptor
-        unique_lst = []
+    
+        descmatrix = _constrain_descmatrix_to_selected_ids(descmatrix, idx)
 
-        dist_matrix = squareform(pdist(descmatrix))
-        K = descmatrix.shape[0]
-        n_features = descmatrix.shape[1]
-        fts_ids = np.zeros(K, dtype='int') -1
-         
-        #choosing random start point
-        fts_ids[0] = np.random.choice(descmatrix.shape[0])
-         
-        #finding next k-1
-        min_dist = dist_matrix[fts_ids[0]]
-        for i in range(1, K):
-            if min_dist.max() / (1.0 * n_features) < threshold:
-                # early stop based on threshold
-                fts_ids = fts_ids[:i]
-                break
-            else:
-                fts_ids[i] = np.argmax(min_dist)
-                min_dist = np.minimum(min_dist, dist_matrix[fts_ids[i]])   
-        return fts_ids
+        unique_ids = _unique_selection(descmatrix = descmatrix, threshold = threshold)
 
-
-        idx = np.array(idx, dtype = int)
-        if len(idx) != 0:
-            unique_ids = idx[unique_lst]
-        else:
-            unique_ids = unique_lst
+        unique_ids = _translate_to_selected_ids(unique_ids, idx)
 
         return unique_ids
 
@@ -549,3 +468,4 @@ class ClusGeo(ase.Atoms):
 
 if __name__ == "__main__":
     print("main")
+    import time

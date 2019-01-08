@@ -123,17 +123,11 @@ class RankingTests(unittest.TestCase):
 
     def test_get_ranked_sites(self):
         # fps ranking testing
-        # no double counting because of is_safe = True
-        ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = True, is_safe = True)
+        # no double counting
+        ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = True)
         self.assertTrue(len(ranked_ids) == len(set(ranked_ids)))
-        ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = False, is_safe = True)
+        ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = False)
         self.assertTrue(len(ranked_ids) == len(set(ranked_ids)))
-
-        # double counting should occur because the shape is perfectly symmetric
-        ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = True, is_safe = False)
-        self.assertTrue(len(ranked_ids) != len(set(ranked_ids)))
-        ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = False, is_safe = False)
-        self.assertTrue(len(ranked_ids) != len(set(ranked_ids)))
 
 
 if __name__ == '__main__':

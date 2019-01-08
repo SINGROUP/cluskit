@@ -1,10 +1,44 @@
 import numpy as np 
 import os, argparse, glob
 from ctypes import *
+from scipy.spatial.distance import cdist
 
 _PATH_TO_CLUSGEO_SO = os.path.dirname(os.path.abspath(__file__))
 _CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libclusgeo3.*so*"]) )
 _LIBCLUSGEO = CDLL(_CLUSGEO_SOFILES[0])
+
+
+# currently not used, but might come in handy at some point
+def _format_ase2clusgeo(obj, all_atomtypes=[]):
+    """ Takes an ase Atoms object and returns numpy arrays and integers
+    which are read by the internal clusgeo. Apos is currently a flattened
+    out numpy array
+    """
+    #atoms metadata
+    totalAN = len(obj)
+    if all_atomtypes:
+        atomtype_set = set(all_atomtypes)
+    else:
+        atomtype_set = set(obj.get_atomic_numbers())
+    num_atomtypes = len(atomtype_set)
+
+    atomtype_lst = np.sort(list(atomtype_set))
+    n_atoms_per_type_lst = []
+    pos_lst = []
+    for atomtype in atomtype_lst:
+        condition = obj.get_atomic_numbers() == atomtype
+        pos_onetype = obj.get_positions()[condition]
+        n_onetype = pos_onetype.shape[0]
+
+        # store data in lists
+        pos_lst.append(pos_onetype)
+        n_atoms_per_type_lst.append(n_onetype)
+
+    typeNs = n_atoms_per_type_lst
+    Ntypes = len(n_atoms_per_type_lst)
+    atomtype_lst
+    Apos = np.concatenate(pos_lst).ravel()
+    return Apos, typeNs, Ntypes, atomtype_lst, totalAN
 
 
 def get_adsorbate_vectors():
@@ -112,3 +146,55 @@ def write_all_sites(atoms, structure_name = "ref", path = "./"):
         pathlib.Path(dirname).mkdir(parents=True, exist_ok=True) 
         ase.io.write(dirname + "/" + structure_name + "H.xyz", structure_H)       
     return None
+
+def place_molecule_on_site(molecule, zero_site, adsorption_vector):
+    """Takes a molecule (ase object) as well as a zero site position with an adsorption vector as input.
+    The object needs to contain an X (dummy atom) to mark the anchoring to the zero site.
+    Returns a translated and rotated adsorbate (ase object) minus the anchor X.
+    """
+    
+    x_idx = np.where(molecule.get_atomic_numbers() == 0)[0]
+    notx_idx = np.where(molecule.get_atomic_numbers() != 0)[0]
+
+    pos = molecule.get_positions()
+    dist_fromx = cdist(pos[x_idx], pos[notx_idx])
+    connecting_atom = np.argmin(dist_fromx)
+    connecting_atom_idx = notx_idx[connecting_atom]
+    
+    adsorbate = molecule.copy()
+    adsorbate.translate( zero_site - adsorbate.get_positions()[x_idx] )
+    adsorbate.rotate(adsorbate.get_positions()[connecting_atom_idx] - zero_site, v=arbitrary_vector, center=zero_site, rotate_cell=False)
+    
+    # remove dummy atom
+    # only one X atom supported
+    adsorbate.pop(x_idx[0])
+
+    return adsorbate
+
+
+
+if __name__ == "__main__":
+    # coding: utf-8
+    import ase
+    from ase.visualize import view
+    from ase.build import molecule
+    from ase.cluster.icosahedron import Icosahedron
+    import clusgeo
+
+    atoms = Icosahedron('Cu', noshells=3)
+    cluster = clusgeo.ClusGeo(atoms)
+
+    #from ase.collections import g2
+    #g2.names
+
+    zero_site = cluster.get_positions()[53]
+    arbitrary_vector = [-2,-2,-2]
+    adsorbate_x = ase.Atoms('HHCX', positions=[[2,0,0], [0,2,0], [0,0,0], [-1.4,-1.4, 0]])
+    
+    adsorbate = place_molecule_on_site(molecule = adsorbate_x, zero_site = zero_site, adsorption_vector = arbitrary_vector)
+
+    # visualize
+    clus_ads = cluster + adsorbate
+    #view(clus_ads)
+    adsorbate_vector_ase = ase.Atoms('OO', positions= [zero_site + arbitrary_vector, zero_site + np.multiply(arbitrary_vector, 2)])
+    view(clus_ads + adsorbate_vector_ase)

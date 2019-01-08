@@ -303,7 +303,7 @@ class Scaffold(ase.Atoms):
 
         x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=False)
 
-        ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False, is_safe = True)
+        ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False)
         for i in range(0,n_clus):
             clusgeo_atoms = ClusGeo(atoms_list[ranks[i]])
             final_atoms_list.append(clusgeo_atoms)
@@ -431,7 +431,7 @@ class Scaffold(ase.Atoms):
 
         x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=False)
 
-        ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False, is_safe = True)
+        ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False)
         for i in range(0,n_clus):
             clusgeo_atoms = ClusGeo(atoms_list[ranks[i]])
             final_atoms_list.append(clusgeo_atoms)

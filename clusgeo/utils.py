@@ -382,9 +382,6 @@ if __name__ == "__main__":
     atoms = Icosahedron('Cu', noshells=3)
     cluster = clusgeo.ClusGeo(atoms)
 
-    #from ase.collections import g2
-    #g2.names
-
     zero_site = cluster.get_positions()[53]
     arbitrary_vector = [-2,-2,-2]
     adsorbate_x = ase.Atoms('HHCX', positions=[[2,0,0], [0,2,0], [0,0,0], [-1.4,-1.4, 0]])

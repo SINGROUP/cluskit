@@ -297,12 +297,6 @@ if __name__ == "__main__":
     from ase.cluster.icosahedron import Icosahedron
     atoms = Icosahedron('Cu', noshells=3)
 
-    atomic_numbers = numpy.ones(len(atoms))
-    atomic_numbers[[1,2,39,40]] = 8
-    atoms.set_atomic_numbers(atomic_numbers)
-
-    #view(atoms)
-
     xyz = atoms.get_positions()
     summary_dict = delaunator(xyz, 4.5)
     #print(summary_dict)

@@ -20,7 +20,7 @@ class SurfaceAtomsTests(unittest.TestCase):
     def test_n_surface_atoms(self):
         """Tests the number of surface atoms.
         """
-        surface_atoms = cluster.get_surface_atoms(bubblesize = 2.5)
+        surface_atoms = cluster.get_surface_atoms(max_bondlength = 4.0)
         n_surface_atoms = len(surface_atoms)
 
         self.assertTrue(n_surface_atoms == 42)
@@ -28,7 +28,7 @@ class SurfaceAtomsTests(unittest.TestCase):
     def test_n_nonsurface_atoms(self):
         """Tests the number of core atoms.
         """
-        nonsurface_atoms = cluster.get_nonsurface_atoms(bubblesize = 2.5)
+        nonsurface_atoms = cluster.get_nonsurface_atoms(max_bondlength = 4.0)
         n_nonsurface_atoms = len(nonsurface_atoms)
 
         self.assertTrue(n_nonsurface_atoms == 13)
@@ -73,12 +73,12 @@ class DefaultDescriptorTests(unittest.TestCase):
     """
 
     def test_get_cluster_descriptor(self):
-        descmatrix = cluster.get_cluster_descriptor(only_surface=False, bubblesize=2.7)
+        descmatrix = cluster.get_cluster_descriptor(only_surface=False, max_bondlength=4.0)
         self.assertTrue(cluster.cluster_descriptor.shape[0] == len(atoms))
         self.assertTrue(descmatrix.shape[0] == len(atoms))
 
         n_top = 42
-        descmatrix = cluster.get_cluster_descriptor(only_surface=True, bubblesize=2.7)
+        descmatrix = cluster.get_cluster_descriptor(only_surface=True, max_bondlength=4.0)
         self.assertTrue(cluster.cluster_descriptor.shape[0] == len(atoms))
         self.assertTrue(descmatrix.shape[0] == n_top)
 
@@ -136,6 +136,20 @@ class RankingTests(unittest.TestCase):
         pass
 
 
+class MoleculeOnSitesTests(unittest.TestCase):
+
+    def test_place_molecules(self):
+        """ Tests whether the placement of a simple adsorbate runs without error.
+        """
+        import ase
+        adsorbate_x = ase.Atoms('HHCX', positions=[[2,0,0], [0,2,0], [0,0,0], [-1.4,-1.4, 0]])
+
+        sitepositions = cluster.get_sites(1)
+
+        for i in [-1, 1, 2, 3]:
+            adsorbate_lst = cluster.place_adsorbates(adsorbate_x, sitetype = i)
+        
+
 
 if __name__ == '__main__':
     # import ase
@@ -159,6 +173,7 @@ if __name__ == '__main__':
     suites.append(unittest.TestLoader().loadTestsFromTestCase(DefaultDescriptorTests))
     suites.append(unittest.TestLoader().loadTestsFromTestCase(UniquenessTests))
     suites.append(unittest.TestLoader().loadTestsFromTestCase(RankingTests))
+    suites.append(unittest.TestLoader().loadTestsFromTestCase(MoleculeOnSitesTests))
     
 
     alltests = unittest.TestSuite(suites)

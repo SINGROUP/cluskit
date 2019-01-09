@@ -3,12 +3,9 @@ import ase, ase.io
 import os, argparse, glob
 from ctypes import *
 from scipy.spatial.distance import cdist, squareform, pdist
-
+from clusgeo.delaunay import delaunator
+import clusgeo.utils
 import dscribe
-
-_PATH_TO_CLUSGEO_SO = os.path.dirname(os.path.abspath(__file__))
-_CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libclusgeo3.*so*"]) )
-_LIBCLUSGEO = CDLL(_CLUSGEO_SOFILES[0])
 
 def _fps(pts, K, greedy=False):
     dist_matrix = squareform(pdist(pts))
@@ -114,6 +111,10 @@ class ClusGeo(ase.Atoms):
                     constraint=constraint,
                     calculator=calculator,
                     info=info)
+        
+        self.site_surface_atom_ids = {}
+        self.zero_site_positions = {}
+        self.adsorption_vectors = {}
 
         if surface is not None:
             if isinstance(surface[0], bool) or isinstance(surface[0], np.bool_):
@@ -128,7 +129,8 @@ class ClusGeo(ase.Atoms):
         self.site_positions = {}
         self.cluster_descriptor = None
         self.sites_descriptor = {}
-        self.surface_atoms = np.nonzero(self.arrays['surface'])[0]
+        self.surface_atoms = self.arrays['surface']
+
 
         # setting standard descriptor
         atomic_numbers = sorted(list(set(self.get_atomic_numbers())))
@@ -142,204 +144,74 @@ class ClusGeo(ase.Atoms):
             )
 
 
-
-    def get_surface_atoms(self, bubblesize = 2.5, mask=False):
+    def get_surface_atoms(self, max_bondlength = 4.5, mask=False):
         """Determines the surface atoms of the nanocluster. Takes two optional inputs. 
-        Firstly, a bubblesize determining how concave a surface can be (the default usually works well).
+        Firstly, a maximum bondlength determining how concave a surface can be (the default usually works well).
         Secondly, the boolean argument mask (default is False). 
         If set to True, a mask array will be returned.
         If False, it returns an array of indices of surface atoms.
         """
         if self.has('surface'):
             if mask:
-                return self.arrays['surface']
+                surface_mask = np.zeros(len(self), dtype='bool')
+                surface_mask[self.arrays['surface']] = True
+                return surface_mask
             else:
-                return np.nonzero(self.arrays['surface'])[0]
-
-        # get clusgeo internal format for c-code
-        py_totalAN = len(self)
-        py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+                return self.arrays['surface']
+ 
         pos = self.get_positions()
-        py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
 
-        # convert int to c_int
-        totalAN = c_int(py_totalAN)
-        # convert double to c_double
-        bubblesize = c_double(float(bubblesize))
-        #convert int array to c_int array
-        surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+        # delaunator not only gets surface atoms but also adsorption site locations
+        summary_dict = delaunator(pos, max_bondlength)
 
-        # convert to c_double arrays
-        x = (c_double * py_totalAN)(*py_x)
-        y = (c_double * py_totalAN)(*py_y)
-        z = (c_double * py_totalAN)(*py_z)
+        ids_surface_atoms = summary_dict["ids_surface_atoms"]
+        
+        # store in attributes
+        self.arrays['surface'] = ids_surface_atoms
 
-        _LIBCLUSGEO.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
-        _LIBCLUSGEO.findSurf.restype = c_int
+        self.site_surface_atom_ids[1] = ids_surface_atoms
+        self.zero_site_positions[1] = summary_dict["positions_surface_atoms"] 
+        self.adsorption_vectors[1] = summary_dict["normals_surface_atoms"] 
+        
+        self.site_surface_atom_ids[2] = summary_dict["ids_surface_edges"] 
+        self.zero_site_positions[2] = summary_dict["centers_surface_edges"]
+        self.adsorption_vectors[2] = summary_dict["normals_surface_edges"] 
+        
+        self.site_surface_atom_ids[3] = summary_dict["ids_surface_triangles"] 
+        self.zero_site_positions[3] = summary_dict["centers_surface_triangles"] 
+        self.adsorption_vectors[3] = summary_dict["normals_surface_triangles"]
 
-        Nsurf = _LIBCLUSGEO.findSurf(x, y, z, surfAtoms, totalAN, bubblesize)
-
-        py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
-        py_surfAtoms = py_surfAtoms[:Nsurf]
-
-        surface_hold = np.zeros(len(self), dtype='bool')
-        surface_hold[py_surfAtoms] = True
-        self.arrays['surface'] = surface_hold
 
         if mask:
-            return surface_hold
+            surface_mask = np.zeros(len(self), dtype='bool')
+            surface_mask[ids_surface_atoms] = True
+            return surface_mask
         else:
-            return py_surfAtoms
+            return ids_surface_atoms
 
-    def get_nonsurface_atoms(self, bubblesize = 2.5):
+    def get_nonsurface_atoms(self, max_bondlength = 4.5):
         """ Determines the core / non-surface atoms of the nanocluster. 
-        Takes a bubblesize as an input determining how concave a surface can be (the default usually works well).
+        Takes a maximum bondlength as an input determining how concave a surface can be (the default usually works well).
         Returns an array of indices of surface atoms.
         
         """
         surface = self.get_surface_atoms(mask=True)
         return np.nonzero(np.logical_not(surface))[0]
 
-    def _get_top_sites(self, distance=1.5):
+    def _compute_adsorbate_positions(self, sitetype, distance=1.5):
         """Takes a distance as input.
         Returns a 2D-array of top site positions with the defined distance from the adsorbing surface atom.
         """
-        # get clusgeo internal format for c-code
-        py_totalAN = len(self)
-        surfatoms = self.get_surface_atoms()
-        py_Nsurf = len(surfatoms)
-        py_surfAtoms = np.zeros(py_totalAN, dtype=int)
-        py_surfAtoms[:py_Nsurf] = surfatoms
-        pos = self.get_positions()
-        py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
-    
-        # convert int to c_int
-        totalAN = c_int(py_totalAN)
-        Nsurf = c_int(py_Nsurf)
-        # convert double to c_double
-        distance = c_double(float(distance))
-    
-        #convert int array to c_int array
-        surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
-    
-        # convert to c_double arrays
-        x = (c_double * py_totalAN)(*py_x)
-        y = (c_double * py_totalAN)(*py_y)
-        z = (c_double * py_totalAN)(*py_z)
-    
-        sites = (c_double*(py_Nsurf * 3  ) )()
-    
-        _LIBCLUSGEO.getEta1.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
-    
-        _LIBCLUSGEO.getEta1(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
-    
-        py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3))
-        py_sites= py_sites.reshape((py_Nsurf,3))
-        self.site_positions[1] = py_sites
-        return self.site_positions[1]    
-    
-    def _get_bridge_sites(self, distance = 1.8):
-        """Takes a distance as input.
-        Returns a 2D-array of bridge site positions with the defined distance from the adsorbing surface atoms.
-        """
-        # get clusgeo internal format for c-code
-        py_totalAN = len(self)
-        surfatoms = self.get_surface_atoms()
-        py_Nsurf = len(surfatoms)
-        py_surfAtoms = np.zeros(py_totalAN, dtype=int)
-        py_surfAtoms[:py_Nsurf] = surfatoms
-        pos = self.get_positions()
-        py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
-    
-        # convert int to c_int
-        totalAN = c_int(py_totalAN)
-        Nsurf = c_int(py_Nsurf)
-    
-        #convert int array to c_int array
-        surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
-        # convert double to c_double
-        distPy = distance
-        distance = c_double(float(distance))
-    
-        # convert to c_double arrays
-        x = (c_double * py_totalAN)(*py_x)
-        y = (c_double * py_totalAN)(*py_y)
-        z = (c_double * py_totalAN)(*py_z)
-    
-        sites = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
-    
-    
-        _LIBCLUSGEO.getEta2.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), 
-            POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
-    
-        Nbridge = _LIBCLUSGEO.getEta2(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
-    
-        py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3* py_Nsurf))
-        py_sites = py_sites.reshape((py_Nsurf*py_Nsurf,3))
-        py_sites = py_sites[:Nbridge] 
-    
-        # check whether adsorbate is inside
-    
-        full_ids = np.arange(py_totalAN)
-        non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
-        min_dist_inside_sites = np.min(cdist(pos[non_surfatoms], py_sites), axis = 0)
-        min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
-        min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
-        outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
-        self.site_positions[2] = outside_sites
-        return self.site_positions[2]
-    
-    
-    def _get_hollow_sites(self, distance= 1.8):
-        """Takes a distance as input.
-        Returns a 2D-array of hollow site positions with the defined distance from the adsorbing surface atoms.
-        """
-        # get clusgeo internal format for c-code
-        py_totalAN = len(self)
-        surfatoms = self.get_surface_atoms()
-        py_Nsurf = len(surfatoms)
-        py_surfAtoms = np.zeros(py_totalAN, dtype=int)
-        py_surfAtoms[:py_Nsurf] = surfatoms
-        pos = self.get_positions()
-        py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
-    
-        # convert int to c_int
-        totalAN = c_int(py_totalAN)
-        Nsurf = c_int(py_Nsurf)
-    
-        #convert int array to c_int array
-        surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
-        # convert double to c_double
-        distPy = distance
-        distance = c_double(float(distance))
-    
-        # convert to c_double arrays
-        x = (c_double * py_totalAN)(*py_x)
-        y = (c_double * py_totalAN)(*py_y)
-        z = (c_double * py_totalAN)(*py_z)
-    
-        sites = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
-    
-    
-        _LIBCLUSGEO.getEta3.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), 
-            POINTER (c_int), c_int, c_int, c_double]
-    
-        Nhollow = _LIBCLUSGEO.getEta3(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
-    
-        py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3* py_Nsurf))
-        py_sites = py_sites.reshape((py_Nsurf*py_Nsurf,3))
-        py_sites = py_sites[:Nhollow] 
-    
-        # check whether adsorbate is inside
-        full_ids = np.arange(py_totalAN)
-        non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
-        min_dist_inside_sites = np.min(cdist(pos[non_surfatoms], py_sites), axis = 0)
-        min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
-        min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
-        outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
-        self.site_positions[3] = outside_sites
-        return self.site_positions[3]
-    
+        self.get_surface_atoms()
+
+        zero_site = self.zero_site_positions[sitetype]
+        v = np.multiply(self.adsorption_vectors[sitetype], distance)
+
+        site_positions = zero_site + v
+        self.site_positions[sitetype] = site_positions
+        return self.site_positions[sitetype]    
+
+
     def get_sites(self, sitetype=-1,  distance= 1.8):
         """This method gets top, bridge or hollow adsorption sites on the nanocluster.
         Takes two optional arguments: sitetype (1,2,3 or default = -1) and distance (float).
@@ -352,24 +224,52 @@ class ClusGeo(ase.Atoms):
         If sitetype = -1, top, bridge and hollow sites are concatenated in that order.
         """
         if sitetype == -1:
-            top = self._get_top_sites(distance=distance)
-            bridge = self._get_bridge_sites(distance=distance)
-            hollow = self._get_hollow_sites(distance=distance)
+            top = self._compute_adsorbate_positions(sitetype = 1, distance=distance)
+            bridge = self._compute_adsorbate_positions(sitetype = 2, distance=distance)
+            hollow = self._compute_adsorbate_positions(sitetype = 3, distance=distance)
             return np.vstack((top, bridge, hollow))
         elif sitetype == 1:
-            return self._get_top_sites(distance=distance)
+            return self._compute_adsorbate_positions(sitetype = 1, distance=distance)
         elif sitetype == 2:
-            return self._get_bridge_sites(distance=distance)
+            return self._compute_adsorbate_positions(sitetype = 2, distance=distance)
         elif sitetype == 3:
-            return self._get_hollow_sites(distance=distance)
+            return self._compute_adsorbate_positions(sitetype = 3, distance=distance)
     
         else:
             raise ValueError("sitetype not understood. Use -1, 1, 2 or 3")
-    
 
-    def get_cluster_descriptor(self, only_surface = False, bubblesize = 2.5):
+    def place_adsorbates(self, molecule, sitetype = -1):
+        """
+        This method places an adsorbate (ase object containing X dummy atom) onto top, bridge or hollow adsorption sites on the nanocluster.
+        Takes the optional argument: sitetype (1,2,3 or default = -1).
+        sitetype =  1  --> top
+                    2  --> bridge
+                    3  --> hollow
+                    -1 --> top, bridge and hollow
+        Returns a 2D-array of top, bridge, and/or hollow site positions with the 
+        defined distance from the adsorbing surface atom(s).
+        If sitetype = -1, top, bridge and hollow sites are concatenated in that order.
+        """
+        if sitetype == -1:
+            zero_sites = np.vstack((self.zero_site_positions[1], self.zero_site_positions[2], self.zero_site_positions[3]))
+            adsorption_vectors = np.vstack((self.adsorption_vectors[1], self.adsorption_vectors[2], self.adsorption_vectors[3]))
+        elif sitetype in [1,2,3]:
+            zero_sites = self.zero_site_positions[sitetype]
+            adsorption_vectors = self.adsorption_vectors[sitetype]
+        else:
+            raise ValueError("sitetype not understood. Use -1, 1, 2 or 3")
+
+        adsorbate_lst = []
+        for zero_site, adsorption_vector in zip(zero_sites, adsorption_vectors):
+            adsorbate = clusgeo.utils.place_molecule_on_site(molecule, zero_site, adsorption_vector)
+            adsorbate_lst.append(adsorbate)
+
+        return adsorbate_lst
+
+
+    def get_cluster_descriptor(self, only_surface = False, max_bondlength = 4.5):
         """Takes a boolean only_surface as input, 
-        and optionally a bubblesize which defines how concave the surface can be.
+        and optionally a maximum bondlength which defines how concave the surface can be.
         Returns a 2D array with a descriptor (default is SOAP) feature vector on a row per atom 
         (per surface atom, if only_surface is set to True).
         """
@@ -377,7 +277,7 @@ class ClusGeo(ase.Atoms):
         descmatrix = desc.create(self.ase_object)
         self.cluster_descriptor = descmatrix
         if only_surface == True:
-            surfid = self.get_surface_atoms(bubblesize = bubblesize)
+            surfid = self.get_surface_atoms(max_bondlength = max_bondlength)
             descmatrix = descmatrix[surfid]
             return descmatrix
         else:
@@ -447,7 +347,6 @@ class ClusGeo(ase.Atoms):
         ranked_ids = _translate_to_selected_ids(ranked_ids, idx)
 
         return ranked_ids
-
 
 
     def get_unique_cluster_atoms(self, threshold = 0.001, idx=[]):

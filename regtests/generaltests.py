@@ -16,10 +16,10 @@ class ASETests(unittest.TestCase):
         """
         from clusgeo import ClusGeo
 
-        water = molecule('H2O')
-        nc_water = ClusGeo(water.copy()) # not implemented yet
+        methanol = molecule('CH3OH')
+        nc_methanol = ClusGeo(methanol.copy()) # not implemented yet
 
-        self.assertTrue(np.array_equal(water.get_positions(), nc_water.get_positions()))
+        self.assertTrue(np.array_equal(methanol.get_positions(), nc_methanol.get_positions()))
 
 
 if __name__ == '__main__':

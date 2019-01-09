@@ -54,7 +54,9 @@ def FindSameTri(tri, faces):
 ##
 ## 
 def delaunator(xyz, rcut):
-
+    # aki move here!
+    xyzShake = xyz + (2*numpy.random.random(xyz.shape)-1)*0.001
+    
     natm = xyz.shape[0]
     r2 = rcut * rcut
 
@@ -92,13 +94,15 @@ def delaunator(xyz, rcut):
                     #tetra = tetra + [t]
 
                     # compute circumsphere center and radius
-                    ri = xyz[t[1:]]
-                    r0 = xyz[t[0]]
+                    ri = xyzShake[t[1:]]
+                    r0 = xyzShake[t[0]]
                     d2 = numpy.zeros((3))
                     
                     for c in range(3):
                         ri[c] -= r0
                         d2[c] = numpy.dot(ri[c], ri[c])
+
+                    if numpy.linalg.det(2*ri) == 0: continue
                     
                     c = numpy.linalg.solve(2*ri, d2)
                     r = numpy.linalg.norm(c)
@@ -109,7 +113,7 @@ def delaunator(xyz, rcut):
                     d2 = r * r
                     for o in range(natm):
                         if o in t: continue
-                        d = xyz[o] - c; d = numpy.dot(d,d)
+                        d = xyzShake[o] - c; d = numpy.dot(d,d)
                         if d < d2:
                             othersInside = True
                             break
@@ -117,7 +121,7 @@ def delaunator(xyz, rcut):
                     if othersInside: continue
 
                     # the tetra is a good one!
-                    #tetras = tetras + [t]
+                    tetras = tetras + [t]
                     #centers = centers + [[c[0], c[1], c[2], r]]
                     
                     # check if the tris faces are already in the list
@@ -142,7 +146,7 @@ def delaunator(xyz, rcut):
 
                     tetraNormals = numpy.zeros((4,3))
                     
-                    for f in range(4):
+                    for f in range(4): # loop through the tris faces
 
                         tri = tfaces[f]
                         coords = xyz[tri]
@@ -218,12 +222,14 @@ def delaunator(xyz, rcut):
             t = triInfo[j]
             if (e[0] == t[0] and e[1] == t[1]) or (e[0] == t[0] and e[1] == t[2]) or (e[0] == t[1] and e[1] == t[2]):
                 enrm += snrmInfo[j]
+        #print(enrm)
         enrm = enrm / numpy.linalg.norm(enrm)
                 
         edgeInfo[i,0:3] = 0.5 * (xyz[e[0]] + xyz[e[1]])
         edgeInfo[i,3:] = enrm
         
-
+    tetras = numpy.asarray(tetras[1:], dtype=numpy.int32)
+    
     # TODO: chose how to combine the information in the output
     #
     # Nt = number of triangular faces on the surface
@@ -244,20 +250,22 @@ def delaunator(xyz, rcut):
     #
     #
     # these files are temporary for debug view in mathematica
+    #numpy.savetxt("xyz.dat", xyz)
     #numpy.savetxt("tris.dat", triInfo, "%d")
     #numpy.savetxt("normals.dat", nrmInfo)
     #numpy.savetxt("centers.dat", cntInfo)
     #numpy.savetxt("verts.dat", xyz[verts])
     #numpy.savetxt("vnormals.dat", vnormals)
     #numpy.savetxt("einfo.dat", edgeInfo)
-
+    #numpy.savetxt("tetras.dat", tetras, "%d")
+    
     summary_dict = {
         "ids_surface_atoms" : verts,
         "positions_surface_atoms" : xyz[verts],
         "normals_surface_atoms" : vnormals,
         "ids_surface_edges" : edges,
-        "centers_surface_edges" : edgeInfo[:, 0:3],
-        "normals_surface_edges" : edgeInfo[:, 4:],
+        "centers_surface_edges" : edgeInfo[:, :3],
+        "normals_surface_edges" : edgeInfo[:, 3:],
         "ids_surface_triangles" : triInfo,
         "centers_surface_triangles" : cntInfo,
         "normals_surface_triangles" : nrmInfo,
@@ -268,39 +276,33 @@ def delaunator(xyz, rcut):
 
 if __name__ == "__main__":
     
-    filename =   "../examples/example_structures/pt55.xyz"
+    import ase, ase.io 
+    from ase.visualize import view
+    #filename =   "../examples/example_structures/pt55.xyz"
     #filename = "../examples/example_structures/mos2.xyz"
+    filename = "../examples/example_structures/fept.xyz"
+    '''
     fxyz = open(filename,"r")
     
     n = int(fxyz.readline())
     fxyz.readline()
 
-    atoms = numpy.zeros((n,3))
+    xyz = numpy.zeros((n,3))
     for i in range(n):
         w = fxyz.readline().split()[1:]
         w = [float(x) for x in w]
-        atoms[i] = w
+        xyz[i] = w
 
-    summary_dict = delaunator(atoms, 5.0)
-    print(summary_dict)
-    print(summary_dict["ids_surface_atoms"].shape, summary_dict["positions_surface_atoms"].shape,
-        summary_dict["normals_surface_atoms"].shape)
+    '''
+    from ase.cluster.icosahedron import Icosahedron
+    atoms = Icosahedron('Cu', noshells=3)
 
-    print("######################################")
+    atomic_numbers = numpy.ones(len(atoms))
+    atomic_numbers[[1,2,39,40]] = 8
+    atoms.set_atomic_numbers(atomic_numbers)
 
-    print(summary_dict["positions_surface_atoms"])
-    print(summary_dict["ids_surface_atoms"])
-    print(atoms)
-    print(atoms.shape)
+    #view(atoms)
 
-
-    import ase, ase.io 
-    from ase.visualize import view
-
-    ase_atoms = ase.io.read(filename)
-
-    atomic_numbers = numpy.ones(len(ase_atoms))
-    atomic_numbers[summary_dict["ids_surface_atoms"]] = 6
-    ase_atoms.set_atomic_numbers(atomic_numbers)
-
-    view(ase_atoms)
+    xyz = atoms.get_positions()
+    summary_dict = delaunator(xyz, 4.5)
+    #print(summary_dict)

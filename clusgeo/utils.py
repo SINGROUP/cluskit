@@ -163,7 +163,7 @@ def place_molecule_on_site(molecule, zero_site, adsorption_vector):
     
     adsorbate = molecule.copy()
     adsorbate.translate( zero_site - adsorbate.get_positions()[x_idx] )
-    adsorbate.rotate(adsorbate.get_positions()[connecting_atom_idx] - zero_site, v=arbitrary_vector, center=zero_site, rotate_cell=False)
+    adsorbate.rotate(adsorbate.get_positions()[connecting_atom_idx] - zero_site, v=adsorption_vector, center=zero_site, rotate_cell=False)
     
     # remove dummy atom
     # only one X atom supported
@@ -171,6 +171,204 @@ def place_molecule_on_site(molecule, zero_site, adsorption_vector):
 
     return adsorbate
 
+# TODO replace instances of self with arguments
+
+def get_surface_atoms(self, bubblesize = 2.5, mask=False):
+    """Determines the surface atoms of the nanocluster. Takes two optional inputs. 
+    Firstly, a bubblesize determining how concave a surface can be (the default usually works well).
+    Secondly, the boolean argument mask (default is False). 
+    If set to True, a mask array will be returned.
+    If False, it returns an array of indices of surface atoms.
+    """
+    if self.has('surface'):
+        if mask:
+            return self.arrays['surface']
+        else:
+            return np.nonzero(self.arrays['surface'])[0]
+
+    # get clusgeo internal format for c-code
+    py_totalAN = len(self)
+    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+    pos = self.get_positions()
+    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+
+    # convert int to c_int
+    totalAN = c_int(py_totalAN)
+    # convert double to c_double
+    bubblesize = c_double(float(bubblesize))
+    #convert int array to c_int array
+    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+
+    # convert to c_double arrays
+    x = (c_double * py_totalAN)(*py_x)
+    y = (c_double * py_totalAN)(*py_y)
+    z = (c_double * py_totalAN)(*py_z)
+
+    _LIBCLUSGEO.findSurf.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_double]
+    _LIBCLUSGEO.findSurf.restype = c_int
+
+    Nsurf = _LIBCLUSGEO.findSurf(x, y, z, surfAtoms, totalAN, bubblesize)
+
+    py_surfAtoms = np.ctypeslib.as_array( surfAtoms, shape=(py_totalAN))
+    py_surfAtoms = py_surfAtoms[:Nsurf]
+
+    surface_hold = np.zeros(len(self), dtype='bool')
+    surface_hold[py_surfAtoms] = True
+    self.arrays['surface'] = surface_hold
+
+    if mask:
+        return surface_hold
+    else:
+        return py_surfAtoms
+
+def get_nonsurface_atoms(self, bubblesize = 2.5):
+    """ Determines the core / non-surface atoms of the nanocluster. 
+    Takes a bubblesize as an input determining how concave a surface can be (the default usually works well).
+    Returns an array of indices of surface atoms.
+    
+    """
+    surface = self.get_surface_atoms(mask=True)
+    return np.nonzero(np.logical_not(surface))[0]
+
+def _get_top_sites(self, distance=1.5):
+    """Takes a distance as input.
+    Returns a 2D-array of top site positions with the defined distance from the adsorbing surface atom.
+    """
+    # get clusgeo internal format for c-code
+    py_totalAN = len(self)
+    surfatoms = self.get_surface_atoms()
+    py_Nsurf = len(surfatoms)
+    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+    py_surfAtoms[:py_Nsurf] = surfatoms
+    pos = self.get_positions()
+    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+
+    # convert int to c_int
+    totalAN = c_int(py_totalAN)
+    Nsurf = c_int(py_Nsurf)
+    # convert double to c_double
+    distance = c_double(float(distance))
+
+    #convert int array to c_int array
+    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+
+    # convert to c_double arrays
+    x = (c_double * py_totalAN)(*py_x)
+    y = (c_double * py_totalAN)(*py_y)
+    z = (c_double * py_totalAN)(*py_z)
+
+    sites = (c_double*(py_Nsurf * 3  ) )()
+
+    _LIBCLUSGEO.getEta1.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
+
+    _LIBCLUSGEO.getEta1(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+
+    py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3))
+    py_sites= py_sites.reshape((py_Nsurf,3))
+    self.site_positions[1] = py_sites
+    return self.site_positions[1]    
+
+def _get_bridge_sites(self, distance = 1.8):
+    """Takes a distance as input.
+    Returns a 2D-array of bridge site positions with the defined distance from the adsorbing surface atoms.
+    """
+    # get clusgeo internal format for c-code
+    py_totalAN = len(self)
+    surfatoms = self.get_surface_atoms()
+    py_Nsurf = len(surfatoms)
+    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+    py_surfAtoms[:py_Nsurf] = surfatoms
+    pos = self.get_positions()
+    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+
+    # convert int to c_int
+    totalAN = c_int(py_totalAN)
+    Nsurf = c_int(py_Nsurf)
+
+    #convert int array to c_int array
+    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+    # convert double to c_double
+    distPy = distance
+    distance = c_double(float(distance))
+
+    # convert to c_double arrays
+    x = (c_double * py_totalAN)(*py_x)
+    y = (c_double * py_totalAN)(*py_y)
+    z = (c_double * py_totalAN)(*py_z)
+
+    sites = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
+
+
+    _LIBCLUSGEO.getEta2.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), 
+        POINTER (c_double), POINTER (c_int), c_int, c_int, c_double]
+
+    Nbridge = _LIBCLUSGEO.getEta2(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+
+    py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3* py_Nsurf))
+    py_sites = py_sites.reshape((py_Nsurf*py_Nsurf,3))
+    py_sites = py_sites[:Nbridge] 
+
+    # check whether adsorbate is inside
+
+    full_ids = np.arange(py_totalAN)
+    non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
+    min_dist_inside_sites = np.min(cdist(pos[non_surfatoms], py_sites), axis = 0)
+    min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
+    min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
+    outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
+    self.site_positions[2] = outside_sites
+    return self.site_positions[2]
+
+
+def _get_hollow_sites(self, distance= 1.8):
+    """Takes a distance as input.
+    Returns a 2D-array of hollow site positions with the defined distance from the adsorbing surface atoms.
+    """
+    # get clusgeo internal format for c-code
+    py_totalAN = len(self)
+    surfatoms = self.get_surface_atoms()
+    py_Nsurf = len(surfatoms)
+    py_surfAtoms = np.zeros(py_totalAN, dtype=int)
+    py_surfAtoms[:py_Nsurf] = surfatoms
+    pos = self.get_positions()
+    py_x, py_y, py_z = pos[:,0], pos[:,1], pos[:,2]
+
+    # convert int to c_int
+    totalAN = c_int(py_totalAN)
+    Nsurf = c_int(py_Nsurf)
+
+    #convert int array to c_int array
+    surfAtoms = (c_int * py_totalAN)(*py_surfAtoms)
+    # convert double to c_double
+    distPy = distance
+    distance = c_double(float(distance))
+
+    # convert to c_double arrays
+    x = (c_double * py_totalAN)(*py_x)
+    y = (c_double * py_totalAN)(*py_y)
+    z = (c_double * py_totalAN)(*py_z)
+
+    sites = (c_double*(py_Nsurf * 3 * py_Nsurf  ) )()
+
+
+    _LIBCLUSGEO.getEta3.argtypes = [POINTER (c_double),POINTER (c_double), POINTER (c_double), POINTER (c_double), 
+        POINTER (c_int), c_int, c_int, c_double]
+
+    Nhollow = _LIBCLUSGEO.getEta3(sites, x, y, z, surfAtoms, Nsurf, totalAN, distance)
+
+    py_sites = np.ctypeslib.as_array( sites, shape=(py_Nsurf*3* py_Nsurf))
+    py_sites = py_sites.reshape((py_Nsurf*py_Nsurf,3))
+    py_sites = py_sites[:Nhollow] 
+
+    # check whether adsorbate is inside
+    full_ids = np.arange(py_totalAN)
+    non_surfatoms = np.setdiff1d(full_ids, surfatoms, assume_unique = True)
+    min_dist_inside_sites = np.min(cdist(pos[non_surfatoms], py_sites), axis = 0)
+    min_dist_nonsurf_surf = np.min(cdist(pos[non_surfatoms], pos[surfatoms]))
+    min_dist_all_sites = np.min(cdist(pos[full_ids], py_sites), axis = 0)
+    outside_sites = py_sites[np.logical_and((min_dist_inside_sites > min_dist_nonsurf_surf), (min_dist_all_sites > (distPy - 0.1) ))]
+    self.site_positions[3] = outside_sites
+    return self.site_positions[3]
 
 
 if __name__ == "__main__":

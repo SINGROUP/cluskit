@@ -1,4 +1,4 @@
-# ClusGeo4
+# ClusKit (former ClusGeo)
 
 [![Build Status](https://travis-ci.org/SINGROUP/ClusGeo.svg?branch=master)](https://travis-ci.org/SINGROUP/ClusGeo)
 [![Coverage Status](https://coveralls.io/repos/github/SINGROUP/ClusGeo/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/ClusGeo?branch=master)

@@ -1,5 +1,5 @@
-import clusgeo.build
-import clusgeo.cluster
-import clusgeo.utils
-from clusgeo.cluster import ClusGeo
-import clusgeo.delaunay
+import cluskit.build
+import cluskit.cluster
+import cluskit.utils
+from cluskit.cluster import ClusGeo
+import cluskit.delaunay

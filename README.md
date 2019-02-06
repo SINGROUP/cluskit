@@ -1,14 +1,14 @@
 # ClusKit (former ClusGeo)
 
-[![Build Status](https://travis-ci.org/SINGROUP/ClusGeo.svg?branch=master)](https://travis-ci.org/SINGROUP/ClusGeo)
-[![Coverage Status](https://coveralls.io/repos/github/SINGROUP/ClusGeo/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/ClusGeo?branch=master)
+[![Build Status](https://travis-ci.org/SINGROUP/cluskit.svg?branch=master)](https://travis-ci.org/SINGROUP/ClusGeo)
+[![Coverage Status](https://coveralls.io/repos/github/SINGROUP/cluskit/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/ClusGeo?branch=master)
 
 
-ClusGeo is a python package dedicated to surface science on nanoclusters. ClusGeo currently focuses on the population of given nanoclusters with adsorbates. Furthermore, it also features the generation of a multitude of different types of nanoclusters.
+ClusKit is a python package dedicated to surface science on nanoclusters. ClusGeo currently focuses on the population of given nanoclusters with adsorbates. Furthermore, it also features the generation of a multitude of different types of nanoclusters.
 
 Sites on the nanoclusters are classified as top, bridge and hollow. One can automatically detect surface atoms as well as those sites on arbitrary nanoclusters. Using a structural descriptor those surface atoms or sites can be compared with each other with respect to their (dis)similarity.
 
-ClusGeo is especially designed for creating many samples of adsorbates on a variety of nanoclusters without the need of visually checking the structures. It is complementary to the python package for surface slabs CatKit [https://github.com/SUNCAT-Center/CatKit](https://github.com/SUNCAT-Center/CatKit)
+ClusKit is especially designed for creating many samples of adsorbates on a variety of nanoclusters without the need of visually checking the structures. It is complementary to the python package for surface slabs CatKit [https://github.com/SUNCAT-Center/CatKit](https://github.com/SUNCAT-Center/CatKit)
 
 
 There is no comprehensive documentation yet at this stage, however, the example in the folder examples covers many features. 
@@ -41,16 +41,16 @@ import numpy as np
 import ase
 from ase.build import molecule
 from ase.cluster.icosahedron import Icosahedron
-import clusgeo
+import cluskit
 
-### Make a clusgeo object from ase ###
+### Make a cluskit object from ase ###
 atoms = Icosahedron('Cu', noshells=3)
-copper_cluster = clusgeo.ClusGeo(atoms)
+copper_cluster = cluskit.cluster(atoms)
 
 ### Two ways to make a scaffold ###
-scaffold_from_ase = clusgeo.build.Scaffold(atoms)
+scaffold_from_ase = cluskit.build.Scaffold(atoms)
 
-scaffold = clusgeo.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
+scaffold = cluskit.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
     energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)])
 
 
@@ -76,7 +76,7 @@ ase.visualize.view(h_structure)
 
 # Dependencies and installation
 
-All dependencies are install automatically. ClusGeo depends heavily on ASE, numpy, scipy and to a smaller degree on dscribe. The latter dependency is a descriptor package which you should be familiar with when you use descriptors other than the default method of ClusGeo. DScribe is a python package for creating machine learning descriptors for atomistic systems. For more details and tutorials, visit the homepage at:
+All dependencies are install automatically. ClusKit depends heavily on ASE, numpy, scipy and to a smaller degree on dscribe. The latter dependency is a descriptor package which you should be familiar with when you use descriptors other than the default method of ClusGeo. DScribe is a python package for creating machine learning descriptors for atomistic systems. For more details and tutorials, visit the homepage at:
 [https://singroup.github.io/dscribe/](https://singroup.github.io/dscribe/)
 
 
@@ -89,13 +89,13 @@ python3 setup.py install
 
 A stable version is available through 
 ```sh
-pip install clusgeo
+pip install cluskit
 ```
 
 
 # Tests
 
-ClusGeo now includes regtests and code coverage. 
+ClusKit now includes regtests and code coverage. 
 
 They range from cluster generation, cluster similarity, spotting surface atoms, finding top, bridge and hollow sites, ranking sites to determining unique sites.
 

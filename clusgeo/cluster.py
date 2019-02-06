@@ -3,8 +3,8 @@ import ase, ase.io
 import os, argparse, glob
 from ctypes import *
 from scipy.spatial.distance import cdist, squareform, pdist
-from clusgeo.delaunay import delaunator
-import clusgeo.utils
+from cluskit.delaunay import delaunator
+import cluskit.utils
 import dscribe
 
 def _fps(pts, K, greedy=False):
@@ -76,7 +76,7 @@ def _translate_to_selected_ids(unique_ids, idx):
         return unique_ids
 
 
-class ClusGeo(ase.Atoms):
+class Cluster(ase.Atoms):
     """ A child class of the ase.Atoms object. 
     It is a nanocluster class with additional methods and attributes, 
     built for the detection and classification of surfaces and adsorption sites. 
@@ -93,7 +93,7 @@ class ClusGeo(ase.Atoms):
                 info=None,
                 surface=None):
 
-        self.ase_object = super(ClusGeo, self).__init__(symbols=symbols,
+        self.ase_object = super(Cluster, self).__init__(symbols=symbols,
                     positions=positions, numbers=numbers,
                     tags=tags, momenta=momenta, masses=masses,
                     magmoms=magmoms, charges=charges,
@@ -261,7 +261,7 @@ class ClusGeo(ase.Atoms):
 
         adsorbate_lst = []
         for zero_site, adsorption_vector in zip(zero_sites, adsorption_vectors):
-            adsorbate = clusgeo.utils.place_molecule_on_site(molecule, zero_site, adsorption_vector)
+            adsorbate = cluskit.utils.place_molecule_on_site(molecule, zero_site, adsorption_vector)
             adsorbate_lst.append(adsorbate)
 
         return adsorbate_lst

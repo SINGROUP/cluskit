@@ -1,6 +1,6 @@
 import ase
-from clusgeo.cluster import ClusGeo
-import clusgeo
+from cluskit.cluster import Cluster
+import cluskit
 import numpy as np
 import ase, ase.io
 
@@ -68,7 +68,7 @@ def get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
     Takes a shape argument (string can be ico, octa or wulff) as well as 
     the size argument i (int) and a latticeconstant.
     When shape = 'wulff', it is required to give energies and surfaces as lists of equal length.
-    Returns a ClusGeo object with atom type 'X'.
+    Returns a Cluster object with atom type 'X'.
     """
     if shape == "ico":
         atoms = Icosahedron('X', noshells = i, latticeconstant = latticeconstant)
@@ -260,7 +260,7 @@ class Scaffold(ase.Atoms):
             n_clus (int): number of cluster to be returned.
 
         Returns:
-            list of ClusGeo objects
+            list of Cluster objects
         """
 
         # get default values where needed.
@@ -303,10 +303,10 @@ class Scaffold(ase.Atoms):
 
         x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=False)
 
-        ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False)
+        ranks = cluskit.cluster._rank_fps(x, K = None, greedy =False)
         for i in range(0,n_clus):
-            clusgeo_atoms = ClusGeo(atoms_list[ranks[i]])
-            final_atoms_list.append(clusgeo_atoms)
+            cluskit_atoms = Cluster(atoms_list[ranks[i]])
+            final_atoms_list.append(cluskit_atoms)
 
         cluster.Reset()
         return final_atoms_list
@@ -345,7 +345,7 @@ class Scaffold(ase.Atoms):
             n_clus (int): number of cluster to be returned.
 
         Returns:
-            list (ClusGeo): Most dissimilar clusters in the given Pseudo-energy
+            list (Cluster): Most dissimilar clusters in the given Pseudo-energy
             range. 
         """
 
@@ -431,10 +431,10 @@ class Scaffold(ase.Atoms):
 
         x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=False)
 
-        ranks = clusgeo.cluster._rank_fps(x, K = None, greedy =False)
+        ranks = cluskit.cluster._rank_fps(x, K = None, greedy =False)
         for i in range(0,n_clus):
-            clusgeo_atoms = ClusGeo(atoms_list[ranks[i]])
-            final_atoms_list.append(clusgeo_atoms)
+            cluskit_atoms = Cluster(atoms_list[ranks[i]])
+            final_atoms_list.append(cluskit_atoms)
 
         cluster.Reset()
         return final_atoms_list
@@ -445,8 +445,8 @@ if __name__=="__main__":
     atoms = Icosahedron('Cu', noshells=3)
 
     scaffold_from_ase = Scaffold(atoms)
-    #from clusgeo import ClusGeo
-    #cluster = ClusGeo(atoms)
+    #from cluskit import Cluster
+    #cluster = Cluster(atoms)
     scaffold = get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
         energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)])
     

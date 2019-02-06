@@ -9,7 +9,7 @@ import os, argparse, time
 from ctypes import *
 import soaplite
 import pathlib
-import clusgeo
+import cluskit
 from os.path import basename
 
 if __name__ == "__main__":
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     ### PROCESS ###
 
     atoms = ase.io.read(infilename)
-    clusgeo.write_all_sites(atoms, rootname)
+    cluskit.write_all_sites(atoms, rootname)
 
     t1_total = time.time()
     print("Total run time:", str(t1_total - t0_total))

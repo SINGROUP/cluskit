@@ -12,8 +12,8 @@ from ase.build import molecule
 from ase.cluster.icosahedron import Icosahedron
 atoms = Icosahedron('Cu', noshells=3)
 
-from clusgeo import ClusGeo
-cluster = ClusGeo(atoms)
+from cluskit import Cluster
+cluster = Cluster(atoms)
 
 class SurfaceAtomsTests(unittest.TestCase):
 
@@ -51,7 +51,7 @@ class AdsorptionSitesTests(unittest.TestCase):
         self.assertTrue(sitepositions.shape[0] == n_top + n_bridge + n_hollow)
 
     def test_get_sites_stored(self):
-        """ Tests whether the right number of sites are stored in the ClusGeo object
+        """ Tests whether the right number of sites are stored in the Cluster object
         using .get_sites() for sitetype = -1,1,2 and 3.
         """
         n_top, n_bridge, n_hollow = 42, 120, 80

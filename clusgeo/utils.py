@@ -4,14 +4,14 @@ from ctypes import *
 from scipy.spatial.distance import cdist
 
 _PATH_TO_CLUSGEO_SO = os.path.dirname(os.path.abspath(__file__))
-_CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libclusgeo3.*so*"]) )
+_CLUSGEO_SOFILES = glob.glob( "".join([ _PATH_TO_CLUSGEO_SO, "/../lib/libcluskit3.*so*"]) )
 _LIBCLUSGEO = CDLL(_CLUSGEO_SOFILES[0])
 
 
 # currently not used, but might come in handy at some point
-def _format_ase2clusgeo(obj, all_atomtypes=[]):
+def _format_ase2cluskit(obj, all_atomtypes=[]):
     """ Takes an ase Atoms object and returns numpy arrays and integers
-    which are read by the internal clusgeo. Apos is currently a flattened
+    which are read by the internal cluskit. Apos is currently a flattened
     out numpy array
     """
     #atoms metadata
@@ -186,7 +186,7 @@ def get_surface_atoms(self, bubblesize = 2.5, mask=False):
         else:
             return np.nonzero(self.arrays['surface'])[0]
 
-    # get clusgeo internal format for c-code
+    # get cluskit internal format for c-code
     py_totalAN = len(self)
     py_surfAtoms = np.zeros(py_totalAN, dtype=int)
     pos = self.get_positions()
@@ -234,7 +234,7 @@ def _get_top_sites(self, distance=1.5):
     """Takes a distance as input.
     Returns a 2D-array of top site positions with the defined distance from the adsorbing surface atom.
     """
-    # get clusgeo internal format for c-code
+    # get cluskit internal format for c-code
     py_totalAN = len(self)
     surfatoms = self.get_surface_atoms()
     py_Nsurf = len(surfatoms)
@@ -272,7 +272,7 @@ def _get_bridge_sites(self, distance = 1.8):
     """Takes a distance as input.
     Returns a 2D-array of bridge site positions with the defined distance from the adsorbing surface atoms.
     """
-    # get clusgeo internal format for c-code
+    # get cluskit internal format for c-code
     py_totalAN = len(self)
     surfatoms = self.get_surface_atoms()
     py_Nsurf = len(surfatoms)
@@ -324,7 +324,7 @@ def _get_hollow_sites(self, distance= 1.8):
     """Takes a distance as input.
     Returns a 2D-array of hollow site positions with the defined distance from the adsorbing surface atoms.
     """
-    # get clusgeo internal format for c-code
+    # get cluskit internal format for c-code
     py_totalAN = len(self)
     surfatoms = self.get_surface_atoms()
     py_Nsurf = len(surfatoms)
@@ -377,10 +377,10 @@ if __name__ == "__main__":
     from ase.visualize import view
     from ase.build import molecule
     from ase.cluster.icosahedron import Icosahedron
-    import clusgeo
+    import cluskit
 
     atoms = Icosahedron('Cu', noshells=3)
-    cluster = clusgeo.ClusGeo(atoms)
+    cluster = cluskit.Cluster(atoms)
 
     zero_site = cluster.get_positions()[53]
     arbitrary_vector = [-2,-2,-2]

@@ -12,13 +12,13 @@ from ase.build import molecule
 from ase.cluster.icosahedron import Icosahedron
 atoms = Icosahedron('Cu', noshells=3)
 
-from clusgeo import ClusGeo
-import clusgeo
+from cluskit import Cluster
+import cluskit
 import dscribe
 
-cluster = ClusGeo(atoms)
+cluster = Cluster(atoms)
 
-scaffold = clusgeo.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
+scaffold = cluskit.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
     energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)])
 
 # descriptor needs to be set correctly
@@ -37,12 +37,12 @@ class ScaffoldTests(unittest.TestCase):
         """Tests the .get_scaffold() function.
         """
 
-        scaffold = clusgeo.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
+        scaffold = cluskit.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
         energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)])
 
         self.assertTrue(len(scaffold) == 55)
 
-        scaffold_from_ase = clusgeo.build.Scaffold(atoms)
+        scaffold_from_ase = cluskit.build.Scaffold(atoms)
 
         self.assertTrue(len(scaffold_from_ase) == 55)
 
@@ -89,7 +89,7 @@ class FixedPseudoTests(unittest.TestCase):
     def test_core_shell(self):
         
         cluster_list =scaffold.get_core_shell(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-        distances = clusgeo.build._get_distances_to_com(cluster_list[0])
+        distances = cluskit.build._get_distances_to_com(cluster_list[0])
         atomic_numbers = cluster_list[0].get_atomic_numbers()
 
         distances_A = distances[atomic_numbers == 28]

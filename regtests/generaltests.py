@@ -14,10 +14,10 @@ class ASETests(unittest.TestCase):
     def test_import(self):
         """Tests that an ASE Atoms is succesfully converted to a NanoCluster object.
         """
-        from clusgeo import ClusGeo
+        from cluskit import Cluster
 
         methanol = molecule('CH3OH')
-        nc_methanol = ClusGeo(methanol.copy()) # not implemented yet
+        nc_methanol = Cluster(methanol.copy()) # not implemented yet
 
         self.assertTrue(np.array_equal(methanol.get_positions(), nc_methanol.get_positions()))
 

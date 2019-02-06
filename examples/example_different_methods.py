@@ -1,16 +1,16 @@
 import os,sys,inspect
-import clusgeo
+import cluskit
 import ase
 import numpy as np
-from clusgeo import ClusGeo
+from cluskit import Cluster
 
 ### Read structure from xyz into ase ###
 atoms = ase.io.read("example_structures/au40cu40.xyz")
 #atoms = ase.io.read("example_structures/Au-icosahedron-3.xyz")
 #atoms = ase.io.read("example_structures/pureSymFe4icos.xyz")
 
-### Make a ClusGeo object from ase (same as ase but enhanced) ###
-cluster = ClusGeo(atoms)
+### Make a Cluster object from ase (same as ase but enhanced) ###
+cluster = Cluster(atoms)
 
 ### Get surface and non-surface atoms ###
 surface_atoms = cluster.get_surface_atoms(bubblesize = 2.7)

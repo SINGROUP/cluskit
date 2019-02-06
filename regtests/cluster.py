@@ -20,7 +20,7 @@ class SurfaceAtomsTests(unittest.TestCase):
     def test_n_surface_atoms(self):
         """Tests the number of surface atoms.
         """
-        surface_atoms = cluster.get_surface_atoms(max_bondlength = 4.0)
+        surface_atoms = cluster.get_surface_atoms()
         n_surface_atoms = len(surface_atoms)
 
         self.assertTrue(n_surface_atoms == 42)
@@ -28,7 +28,7 @@ class SurfaceAtomsTests(unittest.TestCase):
     def test_n_nonsurface_atoms(self):
         """Tests the number of core atoms.
         """
-        nonsurface_atoms = cluster.get_nonsurface_atoms(max_bondlength = 4.0)
+        nonsurface_atoms = cluster.get_nonsurface_atoms()
         n_nonsurface_atoms = len(nonsurface_atoms)
 
         self.assertTrue(n_nonsurface_atoms == 13)
@@ -66,19 +66,24 @@ class AdsorptionSitesTests(unittest.TestCase):
         self.assertTrue(cluster.site_positions[2].shape[0] == n_bridge)
         self.assertTrue(cluster.site_positions[3].shape[0] == n_hollow)
 
-
+    def test_get_ase_atomic_adsorbates(self):
+        """Tests if a list of adsorbates is returned
+        """
+        adsorbates = cluster.get_ase_atomic_adsorbates(sitetype = -1, distance = 1.8, atomtype = "H")
+        self.assertTrue(type(adsorbates) == list)
+        
 class DefaultDescriptorTests(unittest.TestCase):
     """ Tests if the default descriptor (SOAP) functions properly in
     .get_cluster_descriptor() and .get_sites_descriptor()
     """
 
     def test_get_cluster_descriptor(self):
-        descmatrix = cluster.get_cluster_descriptor(only_surface=False, max_bondlength=4.0)
+        descmatrix = cluster.get_cluster_descriptor(only_surface=False)
         self.assertTrue(cluster.cluster_descriptor.shape[0] == len(atoms))
         self.assertTrue(descmatrix.shape[0] == len(atoms))
 
         n_top = 42
-        descmatrix = cluster.get_cluster_descriptor(only_surface=True, max_bondlength=4.0)
+        descmatrix = cluster.get_cluster_descriptor(only_surface=True)
         self.assertTrue(cluster.cluster_descriptor.shape[0] == len(atoms))
         self.assertTrue(descmatrix.shape[0] == n_top)
 

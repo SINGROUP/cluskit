@@ -1,10 +1,10 @@
 # ClusKit (former ClusGeo)
 
-[![Build Status](https://travis-ci.org/SINGROUP/cluskit.svg?branch=master)](https://travis-ci.org/SINGROUP/ClusGeo)
-[![Coverage Status](https://coveralls.io/repos/github/SINGROUP/cluskit/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/ClusGeo?branch=master)
+[![Build Status](https://travis-ci.org/SINGROUP/cluskit.svg?branch=master)](https://travis-ci.org/SINGROUP/cluskit)
+[![Coverage Status](https://coveralls.io/repos/github/SINGROUP/cluskit/badge.svg?branch=master)](https://coveralls.io/github/SINGROUP/cluskit?branch=master)
 
 
-ClusKit is a python package dedicated to surface science on nanoclusters. ClusGeo currently focuses on the population of given nanoclusters with adsorbates. Furthermore, it also features the generation of a multitude of different types of nanoclusters.
+ClusKit is a python package dedicated to surface science on nanoclusters. ClusKit currently focuses on the population of given nanoclusters with adsorbates. Furthermore, it also features the generation of a multitude of different types of nanoclusters.
 
 Sites on the nanoclusters are classified as top, bridge and hollow. One can automatically detect surface atoms as well as those sites on arbitrary nanoclusters. Using a structural descriptor those surface atoms or sites can be compared with each other with respect to their (dis)similarity.
 
@@ -76,7 +76,7 @@ ase.visualize.view(h_structure)
 
 # Dependencies and installation
 
-All dependencies are install automatically. ClusKit depends heavily on ASE, numpy, scipy and to a smaller degree on dscribe. The latter dependency is a descriptor package which you should be familiar with when you use descriptors other than the default method of ClusGeo. DScribe is a python package for creating machine learning descriptors for atomistic systems. For more details and tutorials, visit the homepage at:
+All dependencies are install automatically. ClusKit depends heavily on ASE, numpy, scipy and to a smaller degree on dscribe. The latter dependency is a descriptor package which you should be familiar with when you use descriptors other than the default method of ClusKit. DScribe is a python package for creating machine learning descriptors for atomistic systems. For more details and tutorials, visit the homepage at:
 [https://singroup.github.io/dscribe/](https://singroup.github.io/dscribe/)
 
 

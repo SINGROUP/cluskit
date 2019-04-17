@@ -447,7 +447,7 @@ if __name__=="__main__":
     scaffold_from_ase = Scaffold(atoms)
     #from cluskit import Cluster
     #cluster = Cluster(atoms)
-    scaffold = get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
+    scaffold = get_scaffold(shape = "ico", i = 4, latticeconstant = 3.0,
         energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)])
     
 
@@ -458,11 +458,12 @@ if __name__=="__main__":
     #atoms_list = scaffold_from_ase.get_unique_clusters(0,0,0,1,0, typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
     #atoms_list = scaffold.get_unique_clusters(0,0,0,1,0, typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
 
-    #atoms_list = scaffold.get_unique_clusters_in_range(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 10)
+    atoms_list = scaffold.get_unique_clusters_in_range(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 100)
 
     #scaffold.get_segregated(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
     #scaffold.get_core_shell(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
 
-    #for atoms in atoms_list:
-    #    view(atoms)
+    for atoms in atoms_list:
+        pass
+        #view(atoms)
 

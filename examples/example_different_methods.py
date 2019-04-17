@@ -13,9 +13,9 @@ atoms = ase.io.read("example_structures/au40cu40.xyz")
 cluster = Cluster(atoms)
 
 ### Get surface and non-surface atoms ###
-surface_atoms = cluster.get_surface_atoms(bubblesize = 2.7)
+surface_atoms = cluster.get_surface_atoms()
 
-nonSurf = cluster.get_nonsurface_atoms(bubblesize = 2.7)
+nonSurf = cluster.get_nonsurface_atoms()
 print("surface atoms", len(surface_atoms))
 print("non-surface atoms", len(nonSurf))
 #print(nonSurf)
@@ -26,9 +26,9 @@ print("non-surface atoms", len(nonSurf))
 #ase.io.write("test.xyz", atoms)
 
 ### Descriptor features for cluster atoms ###
-descmatrix = cluster.get_cluster_descriptor(only_surface=False, bubblesize=2.7)
+descmatrix = cluster.get_cluster_descriptor(only_surface=False, )
 print("get_cluster_descriptor" , descmatrix.shape)
-descmatrix = cluster.get_cluster_descriptor(only_surface=True, bubblesize=2.7)
+descmatrix = cluster.get_cluster_descriptor(only_surface=True, )
 print("get_cluster_descriptor, only surface", descmatrix.shape)
 
 ### Adsorption site positions ###
@@ -49,7 +49,7 @@ print("desc top, bridge, hollow sites shape", sitedescmatrix.shape)
 
 
 ### Fps ranking ###
-ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = True, is_safe = True)
+ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[], greedy = True, )
 
 print(ranked_ids)
 print("size of ranked ids:", len(ranked_ids), "set:", len(set(ranked_ids)))

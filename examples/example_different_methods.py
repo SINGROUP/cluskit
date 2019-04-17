@@ -18,12 +18,7 @@ surface_atoms = cluster.get_surface_atoms()
 nonSurf = cluster.get_nonsurface_atoms()
 print("surface atoms", len(surface_atoms))
 print("non-surface atoms", len(nonSurf))
-#print(nonSurf)
 
-#atnum = atoms.get_atomic_numbers()
-#atnum[surface_atoms] = 103
-#atoms.set_atomic_numbers(atnum)
-#ase.io.write("test.xyz", atoms)
 
 ### Descriptor features for cluster atoms ###
 descmatrix = cluster.get_cluster_descriptor(only_surface=False, )

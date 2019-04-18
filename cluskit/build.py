@@ -301,7 +301,7 @@ class Scaffold(ase.Atoms):
             atoms_list.append(new_atoms)
 
 
-        x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=False)
+        x = desc.create(atoms_list, n_jobs = 1,  positions=None, verbose=False)
 
         ranks = cluskit.cluster._rank_fps(x, K = None, greedy =False)
         for i in range(0,n_clus):
@@ -429,7 +429,7 @@ class Scaffold(ase.Atoms):
             atoms_list.append(new_atoms)
 
 
-        x = utils.batch_create(desc, atoms_list,1 ,  positions=None, create_func=None, verbose=False)
+        x = desc.create(atoms_list, n_jobs = 1,  positions=None, verbose=False)
 
         ranks = cluskit.cluster._rank_fps(x, K = None, greedy =False)
         for i in range(0,n_clus):

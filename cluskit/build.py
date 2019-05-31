@@ -298,6 +298,7 @@ class Scaffold(ase.Atoms):
         
             atoms.set_atomic_numbers(actual_types)
             new_atoms = ase.Atoms(numbers=actual_types, positions=positions)
+            new_atoms.info = {"eAA" : eAA, "eAB" : eAB, "eBB" : eBB, "cEA" : cEA, "cEB" : cEB}
             atoms_list.append(new_atoms)
 
 
@@ -411,7 +412,7 @@ class Scaffold(ase.Atoms):
 
         # 5 floats per grid_point: pseudo-energies eAA, eAB, eBB, cEA and cEB
         #print('shape grid points', grid_points.shape)
-        for grid_point in grid_points:
+        for count, grid_point in enumerate(grid_points):
             coreEnergies = [ grid_point[3], grid_point[4] ]
         
             cluster = Clusterer(bond_matrix, positions, ntypeB, grid_point[0], grid_point[1], grid_point[2], com=None, coreEnergies=coreEnergies)
@@ -426,6 +427,7 @@ class Scaffold(ase.Atoms):
         
             atoms.set_atomic_numbers(actual_types)
             new_atoms = ase.Atoms(numbers=actual_types, positions=positions)
+            new_atoms.info = {"eAA" : grid_point[0], "eAB" : grid_point[1], "eBB" : grid_point[2], "cEA" : grid_point[3], "cEB" : grid_point[4]}
             atoms_list.append(new_atoms)
 
 

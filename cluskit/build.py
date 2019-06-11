@@ -9,6 +9,7 @@ from ase.cluster.octahedron import Octahedron
 from ase.cluster import wulff_construction
 from scipy.spatial.distance import cdist, pdist
 from scipy.spatial.distance import squareform
+from scipy.spatial import Voronoi
 
 
 import random
@@ -55,14 +56,34 @@ def _get_connectivity(positions, max_bondlength = None):
             np.ones(np.shape(dmat)) * min_dist,
             rtol=1e-01)
     else:
-        bond_matrix = np.less_equal(dmat, max_bondlength)   
+        bond_matrix = np.less_equal(dmat, max_bondlength) 
+
+    bond_matrix = np.fill_diagonal(bond_matrix, 0)
+
+    return bond_matrix
+
+def _get_voronoi_connectivity(positions):
+    """Helper function to determine the voronoi connectivity 
+    between atoms in a nanocluster. Takes an ase atoms object as input.
+    Returns the bond matrix / connectivity matrix as 
+    squared array of ones (connected) and zeros.
+    """
+    n_atoms = positions.shape[0]
+
+    vor = Voronoi(positions)
+    dmat = pdist(positions)
+
+    bond_matrix = np.zeros((n_atoms, n_atoms))
+    ridge_points = vor.ridge_points
+    bond_matrix[ridge_points[:,0], ridge_points[:,1]] = 1
 
     return bond_matrix
 
 ###
 
 def get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
-    energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)]):
+    energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)],
+    max_bondlength = None):
     """Helper function to build a scaffold of ghost atoms in 
     icosahedral, octahedral or wulff-shape. 
     Takes a shape argument (string can be ico, octa or wulff) as well as 
@@ -85,7 +106,7 @@ def get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
             rounding='above')
     else:
         raise NameError("shape argument unknown! Use ico, octa or wulff")
-    return Scaffold(atoms)
+    return Scaffold(atoms, max_bondlength = max_bondlength)
 
 
 
@@ -206,8 +227,12 @@ class Scaffold(ase.Atoms):
                     calculator=calculator,
                     info=info)
 
-        self.bond_matrix = _get_connectivity(self.ase_object.get_positions(), 
-            max_bondlength = max_bondlength)
+        
+        if max_bondlength == None:
+            self.bond_matrix = _get_voronoi_connectivity(self.ase_object.get_positions())
+        else:
+            self.bond_matrix = _get_connectivity(self.ase_object.get_positions(), 
+                max_bondlength = max_bondlength)
 
 
         # setting default values for atomic types

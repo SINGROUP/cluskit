@@ -31,7 +31,9 @@ adsorbate_lst = cluster.place_adsorbates(adsorbate_x, 1)
 nh3_on_cluster = atoms.copy()
 for adsorbate in adsorbate_lst:
     nh3_on_cluster += adsorbate
-view(nh3_on_cluster)
+
+if __name__ == '__main__':
+    view(nh3_on_cluster)
 
 
 ### Unique sites ###
@@ -51,5 +53,6 @@ top_adsorption_vectors = cluster.adsorption_vectors[1]
 adsorbate = cluskit.utils.place_molecule_on_site(adsorbate_x, 
     top_zero_sites[idx], top_adsorption_vectors[idx])
 
-view(atoms + adsorbate)
+if __name__ == '__main__':
+    view(atoms + adsorbate)
 

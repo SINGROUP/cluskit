@@ -3,6 +3,7 @@ import ase
 from ase.build import molecule
 from ase.cluster.icosahedron import Icosahedron
 import cluskit
+import dscribe
 
 ### Make a cluskit object from ase ###
 atoms = Icosahedron('Cu', noshells=3)
@@ -16,6 +17,18 @@ scaffold = cluskit.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.
 
 
 ### Build binary clusters ###
+
+# necessary to setup descriptor first
+scaffold.descriptor_setup = dscribe.descriptors.SOAP(
+    atomic_numbers=[28, 78],
+    periodic=False,
+    rcut=5.0,
+    nmax=8,
+    lmax=6,
+    sparse=False,
+    average=True
+)
+
 cluster_list = scaffold.get_segregated(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 2)
 print(len(cluster_list))
 
@@ -32,4 +45,5 @@ h_structure = atoms + adsorbates
 
 print(unique_lst.shape)
 
-ase.visualize.view(h_structure)
+if __name__ == '__main__':
+    ase.visualize.view(h_structure)

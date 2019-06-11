@@ -71,6 +71,30 @@ class AdsorptionSitesTests(unittest.TestCase):
         """
         adsorbates = cluster.get_ase_atomic_adsorbates(sitetype = -1, distance = 1.8, atomtype = "H")
         self.assertTrue(type(adsorbates) == list)
+
+
+    def test_find_closest_site(self):
+        """Tests if the closest site to a given point can be found.
+        """
+        sitepositions1 = cluster.get_sites(1)
+        sitepositions2 = cluster.get_sites(2)
+        sitepositions3 = cluster.get_sites(3)
+
+        sitetype, idx = cluster.find_closest_site(sitepositions1[0])
+        self.assertTrue(sitetype == 1)
+        self.assertTrue(idx == 0)
+
+        sitetype, idx = cluster.find_closest_site(sitepositions2[1])
+        self.assertTrue(sitetype == 2)
+        self.assertTrue(idx == 1)
+
+        sitetype, idx = cluster.find_closest_site(sitepositions3[2])
+        self.assertTrue(sitetype == 3)
+        self.assertTrue(idx == 2)
+        return
+
+
+
         
 class DefaultDescriptorTests(unittest.TestCase):
     """ Tests if the default descriptor (SOAP) functions properly in
@@ -121,7 +145,28 @@ class UniquenessTests(unittest.TestCase):
         self.assertTrue(len(unique_lst) == 2)
 
     def test_idx(self):
-        pass
+        """Tests the use of indices in the function"""
+        unique_lst = cluster.get_unique_sites(sitetype = 1, idx=[5])
+        self.assertTrue(len(unique_lst) == 1)
+        
+        unique_lst = cluster.get_unique_sites(sitetype = 1, idx=[5,5,5,5,5,5])
+        self.assertTrue(len(unique_lst) == 1)
+        
+        unique_lst = cluster.get_unique_sites(sitetype = 2, threshold = 0.01, idx=[1,100])
+        self.assertTrue(len(unique_lst) == 2)
+
+        unique_lst = cluster.get_unique_sites(sitetype = 3, threshold = 0.01, idx=[0,1,2,3,70,20, 12, 10, 5, 55])
+        self.assertTrue(len(unique_lst) == 2)
+
+        
+        n_top, n_bridge, n_hollow = 42, 120, 80
+        idx = np.arange(n_top + 1)
+
+        with self.assertRaises(IndexError):
+            unique_lst = cluster.get_unique_sites(sitetype = 1, idx=idx)
+
+
+
 
 
 class RankingTests(unittest.TestCase):
@@ -138,7 +183,24 @@ class RankingTests(unittest.TestCase):
         self.assertTrue(len(ranked_ids) == len(set(ranked_ids)))
 
     def test_idx(self):
-        pass
+        """Tests the use of indices in the function"""
+        ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[0, 100, 200], greedy = True)
+        self.assertTrue(len(ranked_ids) == len(set(ranked_ids)))
+        self.assertTrue(len(ranked_ids) == 3)
+
+        ranked_ids = cluster.get_ranked_sites(sitetype= -1, K = None, idx=[0, 0, 0, 100, 100, 100], greedy = False)
+        self.assertTrue(len(ranked_ids) != len(set(ranked_ids)))
+        self.assertTrue(len(ranked_ids) == 6)
+        self.assertTrue(len(set(ranked_ids)) == 2)
+
+        
+        n_top, n_bridge, n_hollow = 42, 120, 80
+        idx = np.arange(n_top + 1)
+
+        with self.assertRaises(IndexError):
+            unique_lst = cluster.get_ranked_sites(sitetype = 1, idx=idx)
+
+
 
 
 class MoleculeOnSitesTests(unittest.TestCase):
@@ -157,20 +219,6 @@ class MoleculeOnSitesTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # import ase
-    # from ase.visualize import view
-    # sitepositions = cluster.get_sites(3)
-    # sitedescmatrix = cluster.get_sites_descriptor(sitetype = 3)
-
-    # unique_lst = cluster.get_unique_sites(sitetype = 3, threshold = 0.01, idx=[])
-    # print("unique bridge sites", unique_lst, len(unique_lst))
-    # unique_pos = sitepositions[unique_lst]
-    # print("top sites", sitepositions.shape)
-    # print("unique sites", sitepositions.shape)
-
-    # #view(atoms + ase.Atoms('H' * len(sitepositions), sitepositions))
-    # view(atoms + ase.Atoms('H' * len(unique_pos), unique_pos))
-
 
     suites = []
     suites.append(unittest.TestLoader().loadTestsFromTestCase(SurfaceAtomsTests))

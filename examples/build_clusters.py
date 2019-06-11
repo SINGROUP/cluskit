@@ -1,6 +1,7 @@
 from cluskit.build import Scaffold, get_scaffold
 from ase.cluster.icosahedron import Icosahedron
 from ase.visualize import view
+import dscribe
 
 # Parameters: get_unique_clusters
 """ 
@@ -44,6 +45,28 @@ scaffold = get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
     energies = [0.5,0.4,0.3], 
     surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)])
 
+# setup descriptor
+scaffold_from_ase.descriptor_setup = dscribe.descriptors.SOAP(
+    atomic_numbers=[28, 78],
+    periodic=False,
+    rcut=5.0,
+    nmax=8,
+    lmax=6,
+    sparse=False,
+    average=True
+)
+
+scaffold.descriptor_setup = dscribe.descriptors.SOAP(
+    atomic_numbers=[28, 78],
+    periodic=False,
+    rcut=5.0,
+    nmax=8,
+    lmax=6,
+    sparse=False,
+    average=True
+)
+
+
 # get clusters with certain parameters
 atoms_list = scaffold_from_ase.get_unique_clusters(0,0,0,1,0, 
     typeA = 28, typeB = 78, ntypeB = 13, n_clus = 2)
@@ -64,5 +87,6 @@ atoms_list = scaffold.get_random(typeA = 28,
 atoms_list = scaffold.get_ordered(typeA = 28, 
     typeB = 78, ntypeB = 13, n_clus = 10)
 
-for atoms in atoms_list:
-    view(atoms)
+if __name__ == '__main__':        
+    for atoms in atoms_list:
+        view(atoms)

@@ -13,6 +13,7 @@ import unittest
 import generaltests
 import cluster
 import build
+import testexamples
 
 # Initialize the test suite
 loader = unittest.TestLoader()
@@ -22,6 +23,7 @@ suite = unittest.TestSuite()
 suite.addTests(loader.loadTestsFromModule(generaltests))
 suite.addTests(loader.loadTestsFromModule(cluster))
 suite.addTests(loader.loadTestsFromModule(build))
+suite.addTests(loader.loadTestsFromModule(testexamples))
 
 # Initialize a runner, pass it the suite and run it
 runner = unittest.TextTestRunner(verbosity=3)

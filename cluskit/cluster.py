@@ -40,6 +40,11 @@ def _rank_fps(pts, K, greedy=False):
 
     return ranked_lst
 
+def _closest_node(node, nodes):
+    nodes = np.asarray(nodes)
+    dist_2 = np.sum((nodes - node)**2, axis=1)
+    return np.argmin(dist_2), np.min(dist_2)
+
 def _unique_selection(descmatrix, threshold):
     dist_matrix = squareform(pdist(descmatrix))
     K = descmatrix.shape[0]
@@ -249,6 +254,21 @@ class Cluster(ase.Atoms):
             return self._compute_adsorbate_positions(sitetype = 3, distance=distance)
         else:
             raise ValueError("sitetype not understood. Use -1, 1, 2 or 3")
+
+
+    def find_closest_site(self, position):
+        """Takes a point in space as input.
+        Returns the sitetype and the index of the closest site 
+        of the cluster. (Had to be stored previously)
+        """
+        idx1, dist1 = _closest_node(position, self.site_positions[1])
+        idx2, dist2 = _closest_node(position, self.site_positions[2])
+        idx3, dist3 = _closest_node(position, self.site_positions[3])
+
+        sitetype = np.argmin([dist1, dist2, dist3]) + 1
+        closest_site = [idx1, idx2, idx3][sitetype - 1]
+
+        return sitetype, closest_site
 
     def get_ase_atomic_adsorbates(self, sitetype = -1, distance = 1.8, atomtype = "X"):
         """Only for single-atom adsorbate.

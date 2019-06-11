@@ -10,7 +10,7 @@ extensions = [Extension("lib.libcluskit3",
 if __name__=="__main__":
   setup(name="cluskit",
       url="https://github.com/SINGROUP/SOAPLite",
-      version="4.1.6",
+      version="4.1.7",
       description=("(Nano)CLUSter KIT for surface chemistry."), author="Marc Jaeger", author_email="marc.jager@aalto.fi",
       packages = find_packages(),
       install_requires =["numpy>=1.14.2",

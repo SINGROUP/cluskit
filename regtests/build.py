@@ -47,6 +47,37 @@ class ScaffoldTests(unittest.TestCase):
         self.assertTrue(len(scaffold_from_ase) == 55)
 
 
+    def test_connectivities(self):
+        """Tests both voronoi and maximum bond length connectivity by 
+        comparing them to each other.
+        """
+
+        scaffold_from_ase1 = cluskit.build.Scaffold(atoms, max_bondlength = 2.9)
+        scaffold_from_ase2 = cluskit.build.Scaffold(atoms, max_bondlength = None)
+        
+        print("#################")
+        print(scaffold_from_ase1.bond_matrix)
+        print("#################")
+        print(scaffold_from_ase2.bond_matrix)
+        print("#################")
+
+        self.assertTrue( np.all(
+            scaffold_from_ase1.bond_matrix == scaffold_from_ase2.bond_matrix)
+            )
+        
+        scaffold1 = cluskit.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
+            max_bondlength = 2.9)
+        scaffold2 = cluskit.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
+            max_bondlength = None)
+        
+
+        self.assertTrue( np.all(
+            scaffold1.bond_matrix == scaffold2.bond_matrix)
+            )
+
+
+
+        return
 
 
 class FixedPseudoTests(unittest.TestCase):

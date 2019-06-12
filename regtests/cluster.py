@@ -93,6 +93,55 @@ class AdsorptionSitesTests(unittest.TestCase):
         self.assertTrue(idx == 2)
         return
 
+    def test_customize_sites(self):
+        """Tests the method customize_sites"""
+        surface_atoms = cluster.surface_atoms
+        sitepositions = cluster.get_sites(-1)
+
+        # take all surface atoms
+        custom_sites = cluster.customize_sites(surface_atoms)
+        n_top, n_bridge, n_hollow = 42, 120, 80
+        self.assertTrue(custom_sites[1].shape[0] == n_top)
+        self.assertTrue(custom_sites[2].shape[0] == n_bridge)
+        self.assertTrue(custom_sites[3].shape[0] == n_hollow)
+
+        custom_sites = cluster.customize_sites(surface_atoms, sitetype = 1)
+        self.assertTrue(custom_sites.shape[0] == n_top)
+        custom_sites = cluster.customize_sites(surface_atoms, sitetype = 2)
+        self.assertTrue(custom_sites.shape[0] == n_bridge)
+        custom_sites = cluster.customize_sites(surface_atoms, sitetype = 3)
+        self.assertTrue(custom_sites.shape[0] == n_hollow)
+
+        # check is_exclusive
+        custom_sites = cluster.customize_sites(surface_atoms, is_exclusive = True)
+        n_top, n_bridge, n_hollow = 42, 120, 80
+        self.assertTrue(custom_sites[1].shape[0] == n_top)
+        self.assertTrue(custom_sites[2].shape[0] == n_bridge)
+        self.assertTrue(custom_sites[3].shape[0] == n_hollow)
+
+
+        # take only one surface atom
+        custom_sites = cluster.customize_sites(surface_atoms[-1])
+        self.assertTrue(custom_sites[1].shape[0] == 1)
+        # number depends on which type of surface atom 
+        # (here is on the edge)
+        self.assertTrue(custom_sites[2].shape[0] == 6)
+        self.assertTrue(custom_sites[3].shape[0] == 6)
+
+
+        # take only one surface atom with is_exclusive
+        custom_sites = cluster.customize_sites(surface_atoms[-1], is_exclusive = True)
+        self.assertTrue(custom_sites[1].shape[0] == 1)
+        self.assertTrue(custom_sites[2].shape[0] == 0)
+        self.assertTrue(custom_sites[3].shape[0] == 0)
+        
+
+        custom_sites = cluster.customize_sites(surface_atoms[:19], is_exclusive = True)
+
+
+        print(custom_sites)
+        return
+
 
 
         

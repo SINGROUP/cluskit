@@ -51,6 +51,7 @@ class ScaffoldTests(unittest.TestCase):
         """Tests both voronoi and maximum bond length connectivity by 
         comparing them to each other.
         """
+        atoms = Icosahedron('Cu', noshells=2)
 
         scaffold_from_ase1 = cluskit.build.Scaffold(atoms, max_bondlength = 2.9)
         scaffold_from_ase2 = cluskit.build.Scaffold(atoms, max_bondlength = None)
@@ -60,7 +61,10 @@ class ScaffoldTests(unittest.TestCase):
         print("#################")
         print(scaffold_from_ase2.bond_matrix)
         print("#################")
+        print(np.sum(scaffold_from_ase1.bond_matrix, axis = 0), np.sum(scaffold_from_ase1.bond_matrix, axis = 1), np.sum(scaffold_from_ase1.bond_matrix))
+        print(np.sum(scaffold_from_ase2.bond_matrix, axis = 0), np.sum(scaffold_from_ase2.bond_matrix, axis = 1), np.sum(scaffold_from_ase2.bond_matrix))
 
+        print(np.where(scaffold_from_ase1.bond_matrix != scaffold_from_ase2.bond_matrix))
         self.assertTrue( np.all(
             scaffold_from_ase1.bond_matrix == scaffold_from_ase2.bond_matrix)
             )

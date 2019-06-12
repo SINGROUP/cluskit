@@ -256,6 +256,48 @@ class Cluster(ase.Atoms):
             raise ValueError("sitetype not understood. Use -1, 1, 2 or 3")
 
 
+    def customize_sites(self, surface_atom_ids, 
+            sitetype = -1, is_exclusive = False):
+        """
+        Takes a custom list of surface atom ids (the atoms have to be
+        on the surface). Optionally takes sitetype and is_exclusive as input.
+        If is_exclusive is set to True, returns only sites of the given sitetype
+        consisting of exclusively the given surface atoms. Otherwise, by default,
+        returns sites of the given sitetype with at least one of being in 
+        surface_atom_ids.
+        """        
+        # Check if all custom surface_atom_ids are actually on the surface
+        if np.all(np.isin(surface_atom_ids, self.surface_atoms)):
+            pass
+        else:
+            raise Exception("surface_atom_ids should be in surface_atoms")
+
+
+        if sitetype == -1:
+            sitetypes = [1,2,3]
+        else:
+            sitetypes = [sitetype]
+
+        custom_sites = {}
+        for tp in sitetypes:
+
+            site_surface_atom_ids  = self.site_surface_atom_ids[tp]
+            if tp == 1:
+                site_surface_atom_ids = site_surface_atom_ids.reshape((-1,1))
+
+            is_in  = np.isin(site_surface_atom_ids, surface_atom_ids)
+            if is_exclusive:
+                mask = np.all(is_in, axis = -1)
+            else:
+                mask = np.any(is_in, axis = -1)
+
+            custom_sites[tp] = np.flatnonzero(mask)
+
+        if sitetype == -1:
+            return custom_sites
+        else:
+            return custom_sites[sitetype]
+
     def find_closest_site(self, position):
         """Takes a point in space as input.
         Returns the sitetype and the index of the closest site 

@@ -58,7 +58,7 @@ def _get_connectivity(positions, max_bondlength = None):
     else:
         bond_matrix = np.less_equal(dmat, max_bondlength) 
 
-    bond_matrix = np.fill_diagonal(bond_matrix, 0)
+    np.fill_diagonal(bond_matrix, False)
 
     return bond_matrix
 
@@ -73,9 +73,12 @@ def _get_voronoi_connectivity(positions):
     vor = Voronoi(positions)
     dmat = pdist(positions)
 
-    bond_matrix = np.zeros((n_atoms, n_atoms))
+    bond_matrix = np.zeros((n_atoms, n_atoms), dtype=bool)
     ridge_points = vor.ridge_points
-    bond_matrix[ridge_points[:,0], ridge_points[:,1]] = 1
+    bond_matrix[ridge_points[:,0], ridge_points[:,1]] = True
+    # since the voronoi algorithm does not double-count 
+    # the connections, they are artificially added here
+    bond_matrix[ridge_points[:,1], ridge_points[:,0]] = True
 
     return bond_matrix
 

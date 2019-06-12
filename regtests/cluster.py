@@ -135,11 +135,9 @@ class AdsorptionSitesTests(unittest.TestCase):
         self.assertTrue(custom_sites[2].shape[0] == 0)
         self.assertTrue(custom_sites[3].shape[0] == 0)
         
-
         custom_sites = cluster.customize_sites(surface_atoms[:19], is_exclusive = True)
 
-
-        print(custom_sites)
+        #print(custom_sites)
         return
 
 

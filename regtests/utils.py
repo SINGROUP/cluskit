@@ -78,7 +78,6 @@ class MoleculeUtilsTests(unittest.TestCase):
 
     def test_place_molecule_on_site(self):
         """Tests the function place_molecule_on_site"""
-        from cluskit.utils import place_molecule_on_site
         atoms = Icosahedron('Cu', noshells=3)
         cluster = cluskit.Cluster(atoms)
 
@@ -86,12 +85,45 @@ class MoleculeUtilsTests(unittest.TestCase):
         arbitrary_vector = [-2,-2,-2]
         adsorbate_x = ase.Atoms('HHCX', positions=[[2,0,0], [0,2,0], [0,0,0], [-1.4,-1.4, 0]])
         
-        adsorbate = place_molecule_on_site(molecule = adsorbate_x, zero_site = zero_site, adsorption_vector = arbitrary_vector)
+        adsorbate = cluskit.utils.place_molecule_on_site(molecule = adsorbate_x, 
+            zero_site = zero_site, adsorption_vector = arbitrary_vector)
 
         clus_ads = atoms + adsorbate
         adsorbate_vector_ase = ase.Atoms('OO', positions= [zero_site + arbitrary_vector, 
             zero_site + np.multiply(arbitrary_vector, 2)])
         return
+
+    def test_place_and_preoptimize_adsorbates(self):
+        """Tests the function place_and_preoptimize_adsorbates"""
+        ### Make a cluskit object from ase ###
+        import random
+        cluster_atoms = Icosahedron('Cu', noshells=3)
+        cluster = cluskit.Cluster(cluster_atoms)
+        sitepositions = cluster.get_sites(1)
+        sitedescmatrix = cluster.get_sites_descriptor(sitetype = 1)
+
+        ## create molecule with anchor ##
+        test_molecules = ['butadiene', 'CH3CH2OCH3', 'C2H6CHOH', 
+            'C6H6', 'isobutane', 'C3H8', 'C2H6', 'trans-butane']
+        # select only one molecule because of time-intensive function
+        adsorbate_x = molecule(random.choice(test_molecules))
+        
+        ch_sym = adsorbate_x.get_chemical_symbols()
+        ch_sym[-1] = 'X'
+        adsorbate_x.set_chemical_symbols(ch_sym)
+
+        adsorbates = cluskit.utils.place_and_preoptimize_adsorbates(cluster, 
+            adsorbate_x, 1, max_distance=1.5, n_remaining=40, 
+            is_reduce=False, is_reset=True, n_lj_steps=2)
+        
+        #combined_adsorbates = adsorbates[0]
+        #for ads in adsorbates[1:]:
+        #    combined_adsorbates += ads
+
+        #atoms = combined_adsorbates
+        #print(atoms)
+        #view(adsorbate_x)
+        #view(cluster_atoms + atoms)
 
 
 if __name__ == '__main__':

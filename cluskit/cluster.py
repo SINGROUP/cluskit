@@ -322,7 +322,7 @@ class Cluster(ase.Atoms):
             adsorbates.append(atom)
         return adsorbates
 
-    def place_adsorbates(self, molecule, sitetype = -1):
+    def place_adsorbates(self, molecule, sitetype = -1, remove_x = True):
         """
         This method places an adsorbate (ase object containing X dummy atom) onto top, bridge or hollow adsorption sites on the nanocluster.
         Takes the optional argument: sitetype (1,2,3 or default = -1).
@@ -345,7 +345,8 @@ class Cluster(ase.Atoms):
 
         adsorbate_lst = []
         for zero_site, adsorption_vector in zip(zero_sites, adsorption_vectors):
-            adsorbate = cluskit.utils.place_molecule_on_site(molecule, zero_site, adsorption_vector)
+            adsorbate = cluskit.utils.place_molecule_on_site(molecule, zero_site, 
+                adsorption_vector, remove_x = remove_x)
             adsorbate_lst.append(adsorbate)
 
         return adsorbate_lst

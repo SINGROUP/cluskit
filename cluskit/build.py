@@ -36,6 +36,15 @@ tm_dict = {'Sc': 4.6796, 'Ti': 4.1731, 'V': 4.2851, 'Cr': 4.1154, 'Mn': 1.2604, 
 
 # helper functions
 def _get_distances_to_com(atoms):
+    """Helper function to get the distances to the center of mass
+
+    Args:
+        atoms (ase.Atoms) : ase.Atoms object
+
+    Returns:
+        1D ndarray :    distances of each atom of the atoms object to
+                        center of mass 
+    """
     center_of_mass = atoms.get_center_of_mass()
     distances = cdist(atoms.get_positions(), center_of_mass.reshape((-1,3)))
     return distances
@@ -46,6 +55,16 @@ def _get_connectivity(positions, max_bondlength = None):
     nanocluster. Takes an ase atoms object as input.
     Returns the bond matrix / connectivity matrix as 
     squared array of ones (connected) and zeros.
+
+    Args:
+        positions (2D ndarray) :    atomic positions of the structure in Angstrom
+        max_bondlength (float) :    distance up to which two atoms are considered
+                                    bound. If None, the minimum distance is used
+                                    as a guess with a tolerance factor of 0.1.
+                                    Works well with equidistant atoms.
+    Returns:
+        2d ndarray :    boolean bond matrix / connectivity matrix with ones
+                        indicating the connecting atoms. The diagonal is set to zero
     """
     dmat = pdist(positions)
     min_dist = dmat.min()
@@ -67,6 +86,13 @@ def _get_voronoi_connectivity(positions):
     between atoms in a nanocluster. Takes an ase atoms object as input.
     Returns the bond matrix / connectivity matrix as 
     squared array of ones (connected) and zeros.
+
+    Args:
+        positions (2D ndarray) :    atomic positions of the structure in Angstrom
+        
+    Returns:
+        2d ndarray :    boolean bond matrix / connectivity matrix with ones
+                        indicating the connecting atoms. The diagonal is set to zero
     """
     n_atoms = positions.shape[0]
 
@@ -87,12 +113,34 @@ def _get_voronoi_connectivity(positions):
 def get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
     energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)],
     max_bondlength = None):
-    """Helper function to build a scaffold of ghost atoms in 
-    icosahedral, octahedral or wulff-shape. 
+    """Builds a scaffold of ghost atoms in icosahedral, octahedral or wulff-shape. 
     Takes a shape argument (string can be ico, octa or wulff) as well as 
     the size argument i (int) and a latticeconstant.
     When shape = 'wulff', it is required to give energies and surfaces as lists of equal length.
     Returns a Cluster object with atom type 'X'.
+
+    Args:
+        shape (str) :       nanocluster shape such as "ico" (default), "octa", "wulff"
+        i (float) :         size of the nanocluster. Has different implications depending 
+                            on the shape
+        latticeconstant (float) :   lattice constant of the fcc crystal structure defining
+                                    the scaling of the nanocluster 
+        energies (list) :       Defines Wulff-shape, ignored otherwise. The proportions of 
+                                the surface energies defining the prominence of certain
+                                slabs defined by surface (energies and corresponding 
+                                surfaces must be in the same order)
+        surfaces (list) :       Defines Wulff-shape, ignored otherwise. The Miller-indices
+                                of the surface slabs. Their energies define the prominence 
+                                of certain slabs (energies and corresponding surfaces must 
+                                be in the same order)
+        max_bondlength (float) :    distance up to which two atoms are considered
+                                    bound. If None, the minimum distance is used
+                                    as a guess with a tolerance factor of 0.1.
+                                    Works well with equidistant atoms.
+
+    Returns:
+        cluskit.Scaffold :  Scaffold object, an enhanced ase.Atoms object
+                            with additional attributes such as bond_matrix
     """
     if shape == "ico":
         atoms = Icosahedron('X', noshells = i, latticeconstant = latticeconstant)
@@ -118,8 +166,24 @@ class Clusterer:
     It configures the atom types in the cluster using a Monte-Carlo algorithm and
     pseudo-energies (taking into account core-shell segregation effect and different interaction
     strenghts between atoms of different types.
-    """
 
+    Args:
+
+        bond_matrix (2d ndarray) :  boolean bond matrix / connectivity matrix with ones
+                                    indicating the connecting atoms. The diagonal is set to zero        positions (2D ndarray) :    atomic positions of the structure in Angstrom
+        ntypeB (int) :  number of atoms of type B in cluster. This argument controls the composition.
+        eAA (float) :   pseudo-energy of A-A interaction
+        eAB (float) :   pseudo-energy of A-B interaction
+        eBB (float) :   pseudo-energy of B-B interaction
+        com (1D ndarray) :  center of mass of the nanocluster. If None,
+                            the center of atomic positions is chosen
+        coreEnergies (list) :   - eEA (float): pseudo-energy of segregation of A into the core,
+                                - eEB (float): pseudo-energy of segregation of B into the core.
+    
+    Returns:
+         cluskit.Clusterer :    cluster generator object. Can be activated
+                                by the Evolve method
+    """
     def __init__(self, bond_matrix, positions, ntypeB, eAA, eAB, eBB, com=None, coreEnergies=[0,0]):
 
         self.bondmat = bond_matrix
@@ -146,7 +210,6 @@ class Clusterer:
         self.atomTypes[0:self.ntypeB] = 1
         np.random.shuffle(self.atomTypes)
 
-
         # compute the coreness of each atom
         self.coreness = np.zeros(positions.shape[0])
         for i in range(positions.shape[0]):
@@ -160,6 +223,15 @@ class Clusterer:
 
     def Evolve(self, kT, nsteps):
         """ Monte-Carlo iterates nsteps with a temperature of kT.
+        The attribute self.atomTypes is changed subsequently
+
+        Args:
+            kT (float) :    pseudo-temperature of Monte-Carlo in
+                            np.exp(-(energyAfter-energyBefore)/kT)
+            nsteps (int) :  number of iterations
+
+        Returns:
+            Nonetype : None
         """
         energyBefore = np.sum(self.coreEnergies[self.atomTypes] * self.coreness) # corification contribution
         nearenergymat = self.nearEnergies[self.atomTypes][:,self.atomTypes]
@@ -182,23 +254,32 @@ class Clusterer:
     #        print(timeAft - timeBef)
     # --- end of Evolve --- #
 
-
     def Reset(self):
         """Reset to initial state.
+        self.atomTypes is reset to a random distribution
         """
         self.atomTypes = np.zeros(self.positions.shape[0], dtype=np.int32)
         self.atomTypes[0:self.ntypeB] = 1
         np.random.shuffle(self.atomTypes)
-
-
     # --- end of Reset --- #
 
 class Scaffold(ase.Atoms):
-
     """
-    A child class of the ase.Atoms object. 
+    A child class of the ase.Atoms class. 
     It is a nanocluster class that stores information of a nanocluster on atom positions 
     as well as bonding, but not the actual atomic types.
+    Sets up a descriptor based on the atomic types which have been
+    given. Can be changed later by overwriting the self.descriptor_setup
+    attribute.
+
+    Args:
+        max_bondlength (float) :    distance up to which two atoms are considered
+                                    bound. If None, the voronoi tesselation is
+                                    used
+
+    Returns:
+        cluskit.Scaffold :  Scaffold object, an enhanced ase.Atoms object
+                            with additional attributes such as bond_matrix    
     """
     def __init__(self, symbols=None,
                 positions=None, numbers=None,
@@ -211,6 +292,7 @@ class Scaffold(ase.Atoms):
                 info=None,
                 max_bondlength=None):
 
+        # TODO: solve inheritance elegantly
         self.ase_object = super(Scaffold, self).__init__(symbols=symbols,
                     positions=positions, numbers=numbers,
                     tags=tags, momenta=momenta, masses=masses,
@@ -230,13 +312,11 @@ class Scaffold(ase.Atoms):
                     calculator=calculator,
                     info=info)
 
-        
         if max_bondlength == None:
             self.bond_matrix = _get_voronoi_connectivity(self.ase_object.get_positions())
         else:
             self.bond_matrix = _get_connectivity(self.ase_object.get_positions(), 
                 max_bondlength = max_bondlength)
-
 
         # setting default values for atomic types
         atomic_numbers = sorted(list(set(self.ase_object.get_atomic_numbers())))
@@ -252,7 +332,6 @@ class Scaffold(ase.Atoms):
 
         self.com = self.ase_object.get_center_of_mass()
         self.distances_to_com = _get_distances_to_com(self.ase_object)
-
 
         if 0 in atomic_numbers:
             # dscribe does not allow 0 as atomic index
@@ -273,9 +352,15 @@ class Scaffold(ase.Atoms):
 
         return
 
-
     def get_unique_clusters(self, eAA,eAB,eBB,cEA,cEB, typeA = None, typeB = None, ntypeB = None, n_clus = 1):
-        """
+        """Gets n_clus clusters all constructed with the given parameters. It uses the Clusterer
+        class to generate the clusters. First, 5 times as many nanoclusters are created,
+        then they are reduced to n_clus, keeping the most dissimilar structures.
+
+        The Scaffold.descriptor_setup attribute is used for the similarity metric,
+        the Scaffold.bond_matrix attribute is used for the connectivity, and hence 
+        interactions (eAA, eAB, eBB) to acquire a configuration suitable to the pseudo-energies
+
         Args:
             eAA (float): pseudo-energy of A-A interaction
             eAB (float): pseudo-energy of A-B interaction
@@ -284,11 +369,12 @@ class Scaffold(ase.Atoms):
             eEB (float): pseudo-energy of segregation of A into the core.
             typeA (int): element of type A in atomic number of PSE.
             typeB (int): element of type B in atomic number of PSE.
-            ntype (int): number of atoms of type B in cluster. This argument controls the composition.
+            ntypeB (int): number of atoms of type B in cluster. This argument controls the composition.
             n_clus (int): number of cluster to be returned.
 
         Returns:
-            list of Cluster objects
+            list :  Most dissimilar clusters (cluskit.Cluster objects) at the given Pseudo-energy
+                    parameters.         
         """
 
         # get default values where needed.
@@ -341,27 +427,88 @@ class Scaffold(ase.Atoms):
         return final_atoms_list
 
     def get_segregated(self, typeA, typeB, ntypeB, n_clus = 1):
+        """Gets n_clus segregated nanoclusters
+
+        Args:
+            typeA (int): element of type A in atomic number of PSE.
+            typeB (int): element of type B in atomic number of PSE.
+            ntypeB (int): number of atoms of type B in cluster. This argument controls the composition.
+            n_clus (int): number of cluster to be returned.
+        
+        Returns:
+            list :  Most dissimilar clusters (cluskit.Cluster objects) at the given Pseudo-energy
+                    parameters.  
+        """
         return self.get_unique_clusters(-1,1,-1,0,0,typeA = typeA , typeB = typeB, ntypeB = ntypeB, n_clus = n_clus)
 
     def get_core_shell(self, typeA, typeB, ntypeB, n_clus = 1):
+        """Gets n_clus core-shell nanoclusters with typeA in the
+        core.
+
+
+        Args:
+            typeA (int): element of type A in atomic number of PSE.
+            typeB (int): element of type B in atomic number of PSE.
+            ntypeB (int): number of atoms of type B in cluster. This argument controls the composition.
+            n_clus (int): number of cluster to be returned.
+        
+        Returns:
+            list :  Most dissimilar clusters (cluskit.Cluster objects) at the given Pseudo-energy
+                    parameters.  
+        """
         return self.get_unique_clusters(0,0,0,1,0,typeA = typeA , typeB = typeB, ntypeB = ntypeB, n_clus = n_clus)
 
     def get_random(self, typeA, typeB, ntypeB, n_clus = 1):
+        """Gets n_clus randomly configured nanoclusters
+
+
+        Args:
+            typeA (int): element of type A in atomic number of PSE.
+            typeB (int): element of type B in atomic number of PSE.
+            ntypeB (int): number of atoms of type B in cluster. This argument controls the composition.
+            n_clus (int): number of cluster to be returned.
+        
+        Returns:
+            list :  Most dissimilar clusters (cluskit.Cluster objects) at the given Pseudo-energy
+                    parameters.  
+        """
         return self.get_unique_clusters(0,0,0,0,0,typeA = typeA , typeB = typeB, ntypeB = ntypeB, n_clus = n_clus)
 
     def get_ordered(self, typeA, typeB, ntypeB, n_clus = 1):
+        """Gets n_clus 'ordered' nanoclusters. Ordered not in the sense
+        of crystals. Ordered crystals can be constructed by slicing bulk
+        material.
+        This implementation of ordered means near-ordered such that the
+        number of interactions A-B are maximized
+
+        Args:
+            typeA (int): element of type A in atomic number of PSE.
+            typeB (int): element of type B in atomic number of PSE.
+            ntypeB (int): number of atoms of type B in cluster. This argument controls the composition.
+            n_clus (int): number of cluster to be returned.
+        
+        Returns:
+            list :  Most dissimilar clusters (cluskit.Cluster objects) at the given Pseudo-energy
+                    parameters.  
+        """
         return self.get_unique_clusters(1,-1,1,0,0, typeA = typeA , typeB = typeB, ntypeB = ntypeB, n_clus = n_clus)
 
-
     # single-atom alloy
-
-
+    # TODO SAA method
 
     # range of eAA,eAB,eBB,cEA,cEB 
     def get_unique_clusters_in_range(self,
         eAA = [-1,1], eAB = [-1,1], eBB = [-1,1], cEA = [-1,1], cEB = [-1,1],
         typeA = None, typeB = None, ntypeB = None, n_clus = 1):
-        """
+        """Similar method to get_unique_clusters with an additional loop.
+        A parameter grid is generated on which nanoclusters are configured
+        at each grid point. The most dissimilar structures are chosen based
+        on a similarity metric (given by the self.descriptor_setup attribute).
+
+        The grid is chosen as small as possible. In order to get a finer grid, increase
+        n_clus. The nanoclusters are returned in an ordered list such that the most
+        dissimilar clusters come first.
+
         Args:
             eAA (list of 2 floats): pseudo-energy of A-A interaction
             eAB (list of 2 floats): pseudo-energy of A-B interaction
@@ -370,12 +517,13 @@ class Scaffold(ase.Atoms):
             eEB (list of 2 floats): pseudo-energy of segregation of A into the core.
             typeA (int): element of type A in atomic number of PSE.
             typeB (int): element of type B in atomic number of PSE.
-            ntype (int): number of atoms of type B in cluster. This argument controls the composition.
-            n_clus (int): number of cluster to be returned.
+            ntypeB (int): number of atoms of type B in cluster. This argument controls the composition.
+            n_clus (int):   number of cluster to be returned. Affects the internal coarseness of the
+                            parameter grid
 
         Returns:
-            list (Cluster): Most dissimilar clusters in the given Pseudo-energy
-            range. 
+            list :  Most dissimilar clusters (cluskit.Cluster objects) in the given Pseudo-energy
+                    range. 
         """
 
         # get default values where needed.
@@ -468,32 +616,3 @@ class Scaffold(ase.Atoms):
 
         cluster.Reset()
         return final_atoms_list
-
-
-if __name__=="__main__":
-    from ase.cluster.icosahedron import Icosahedron
-    atoms = Icosahedron('Cu', noshells=3)
-
-    scaffold_from_ase = Scaffold(atoms)
-    #from cluskit import Cluster
-    #cluster = Cluster(atoms)
-    scaffold = get_scaffold(shape = "ico", i = 4, latticeconstant = 3.0,
-        energies = [0.5,0.4,0.3], surfaces = [(1, 0, 0), (1, 1, 1), (1, 1, 0)])
-    
-
-    #x = get_ordered(29,49,30,5,clus_size=4)
-    #view(scaffold_from_ase)
-    #view(scaffold)
-
-    #atoms_list = scaffold_from_ase.get_unique_clusters(0,0,0,1,0, typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-    #atoms_list = scaffold.get_unique_clusters(0,0,0,1,0, typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-
-    atoms_list = scaffold.get_unique_clusters_in_range(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 100)
-
-    #scaffold.get_segregated(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-    #scaffold.get_core_shell(typeA = 28, typeB = 78, ntypeB = 13, n_clus = 1)
-
-    for atoms in atoms_list:
-        pass
-        #view(atoms)
-

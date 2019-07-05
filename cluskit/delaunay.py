@@ -1,13 +1,17 @@
 import numpy
 from itertools import combinations
 
-
-## \brief Computes one of the centers of a triangle. (Do not remember which one)
-##
-## \param coords: a 3x3 matrix with the xyz coords of the vertexes on each row.
-## \return The center point as numpy array.
 def FaceCenter(coords):
+    """Computes one of the centers of a triangle. 
+    (Do not remember which one)
 
+    Args:
+        coords (2D ndarray):    a 3x3 matrix with the xyz coordinates of 
+                                the vertices on each row.
+
+    Returns:
+        1D ndarray : center point
+    """
     d = numpy.zeros((3))
     d[0] = numpy.linalg.norm(coords[1]-coords[2])
     d[1] = numpy.linalg.norm(coords[2]-coords[0])
@@ -19,12 +23,17 @@ def FaceCenter(coords):
 
     return c
 
-## \brief Computes the normal vector of a triangle.
-##
-## \param coords: numpy 3x3 matrix with the triangle verteces xyz components on the rows.
-## \return Normal vector as numpy array.
-def FaceNormal(coords, normalise=True):
 
+def FaceNormal(coords, normalise=True):
+    """
+    Computes the normal vector of a triangle.
+    
+    Args:
+        coords (2D ndarray):    a 3x3 matrix with the xyz coordinates of 
+                                the vertices on each row.
+    Returns:
+        1D ndarray : Normal vector
+    """
     r0 = coords[0]
     v1 = coords[1] - r0
     v2 = coords[2] - r0
@@ -35,7 +44,17 @@ def FaceNormal(coords, normalise=True):
 
 
 def FindSameTri(tri, faces):
+    """Helper function to find a point triple
+    in a list of faces
 
+    Args:
+        tri (2D ndarray) : a triplet of points in real space
+        faces (3D ndarray) : list of triplet of points in real space
+
+    Returns:
+        tuple : is triangle found (bool),
+                list of faces without the specified face (3D ndarray)
+    """
     found = False
     
     for i in range(len(faces)):
@@ -47,14 +66,55 @@ def FindSameTri(tri, faces):
 
     return found, faces
 
-## \brief This is the shit!
-##
-## \param xyz: numpy matrix N (number of atoms) rows, 3 columns (x,y,z position).
-## \param rcut: max distance between atoms that can be considered a side of a tetrahedron.
-##
-## 
+
 def delaunator(xyz, rcut):
-    # aki move here!
+    """Delaunay algorithm which compartmentalizes a volume in 
+    real space comprised of a set of points. The points 
+    become vertices of tetrahedra which do not overlap.
+
+    As a side product, non-overlapping triangles are defined
+    which is useful to determine the faces of the volume
+
+    explanation of internal parameters:
+    - Nt = number of triangular faces on the surface
+    - Ne = number of edges on the surface
+    - Nv = number of atoms on the surface
+     
+    
+    - triInfo: Nt x 3 matrix, on each row -> three indexes of the atoms that make up the face, sorted by index!
+    - nrmInfo: Nt x 3 matrix, on each row -> nx,ny,nz components of the normal vector of each face (normalised)
+    - snrmInfo:Nt x 3 matrix, on each row -> nx,ny,nz components of the normal vector of each face (NOT normalised)
+    - cntInfo: Nt x 3 matrix, on each row -> x,y,z components of the face center point
+    
+    - verts: Nv list, each element is the index of a surface atom
+    - vnormals: Nv x 3 matrix, on each row -> nx,ny,nz components of a surface atom normal vector (normalised)
+    
+    - edges: Ne x 2 matrix, on each row there are the indexes of the two atoms and the ends
+    - edgeInfo: Ne x 6 matrix, each row -> x,y,z,nx,ny,nz components of the edge midpoint position and normal (normalised)
+
+    Args:
+        xyz (2D ndarray) :  Nx3)-matrix, N (number of atoms) rows, 
+                            3 columns (x,y,z position).
+        rcut (float) :  maximum distance between atoms that can be 
+                        considered a side of a tetrahedron.
+
+    Returns:
+        dict :  summary dictionary with all important information for
+                post-processing:
+                summary_dict = {
+                    "ids_surface_atoms" : verts,
+                    "positions_surface_atoms" : xyz[verts],
+                    "normals_surface_atoms" : vnormals,
+                    "ids_surface_edges" : edges,
+                    "centers_surface_edges" : edgeInfo[:, :3],
+                    "normals_surface_edges" : edgeInfo[:, 3:],
+                    "ids_surface_triangles" : triInfo,
+                    "centers_surface_triangles" : cntInfo,
+                    "normals_surface_triangles" : nrmInfo,
+                    }
+    """
+    # perfect structures cause numerical problems. The computer gets distracted by the
+    # sheer beauty of the numbers it crunches
     xyzShake = xyz + (2*numpy.random.random(xyz.shape)-1)*0.001
     
     natm = xyz.shape[0]
@@ -170,9 +230,7 @@ def delaunator(xyz, rcut):
                         found, newtris = FindSameTri(tri, tris)
                         tris = newtris
                         if not found:
-                            tris = tris + [[tri,triNormal,triCenter,newtri, triNormal/numpy.linalg.norm(triNormal)]]
-                        
-                        
+                            tris = tris + [[tri,triNormal,triCenter,newtri, triNormal/numpy.linalg.norm(triNormal)]]                                        
     # loop done... we have all triangular faces!
 
     triInfo = numpy.asarray([t[0] for t in tris], dtype=numpy.int32)
@@ -199,8 +257,6 @@ def delaunator(xyz, rcut):
 
         vnormals[i] /= numpy.linalg.norm(vnormals[i])
         
-
-
     # now find edge means and normals
     edges = numpy.zeros((triInfo.shape[0]*3, 2), dtype=numpy.int32)
     
@@ -222,34 +278,14 @@ def delaunator(xyz, rcut):
             t = triInfo[j]
             if (e[0] == t[0] and e[1] == t[1]) or (e[0] == t[0] and e[1] == t[2]) or (e[0] == t[1] and e[1] == t[2]):
                 enrm += snrmInfo[j]
-        #print(enrm)
         enrm = enrm / numpy.linalg.norm(enrm)
                 
         edgeInfo[i,0:3] = 0.5 * (xyz[e[0]] + xyz[e[1]])
         edgeInfo[i,3:] = enrm
         
     tetras = numpy.asarray(tetras[1:], dtype=numpy.int32)
-    
-    # TODO: chose how to combine the information in the output
-    #
-    # Nt = number of triangular faces on the surface
-    # Ne = number of edges on the surface
-    # Nv = number of atoms on the surface
-    # 
-    #
-    # triInfo: Nt x 3 matrix, on each row -> three indexes of the atoms that make up the face, sorted by index!
-    # nrmInfo: Nt x 3 matrix, on each row -> nx,ny,nz components of the normal vector of each face (normalised)
-    # snrmInfo:Nt x 3 matrix, on each row -> nx,ny,nz components of the normal vector of each face (NOT normalised)
-    # cntInfo: Nt x 3 matrix, on each row -> x,y,z components of the face center point
-    #
-    # verts: Nv list, each element is the index of a surface atom
-    # vnormals: Nv x 3 matrix, on each row -> nx,ny,nz components of a surface atom normal vector (normalised)
-    #
-    # edges: Ne x 2 matrix, on each row there are the indexes of the two atoms and the ends
-    # edgeInfo: Ne x 6 matrix, each row -> x,y,z,nx,ny,nz components of the edge midpoint position and normal (normalised)
-    #
-    #
-    # these files are temporary for debug view in mathematica
+
+    # use these files for debug view in mathematica
     #numpy.savetxt("xyz.dat", xyz)
     #numpy.savetxt("tris.dat", triInfo, "%d")
     #numpy.savetxt("normals.dat", nrmInfo)
@@ -272,31 +308,3 @@ def delaunator(xyz, rcut):
         }
 
     return summary_dict
-
-
-if __name__ == "__main__":
-    
-    import ase, ase.io 
-    from ase.visualize import view
-    #filename =   "../examples/example_structures/pt55.xyz"
-    #filename = "../examples/example_structures/mos2.xyz"
-    filename = "../examples/example_structures/fept.xyz"
-    '''
-    fxyz = open(filename,"r")
-    
-    n = int(fxyz.readline())
-    fxyz.readline()
-
-    xyz = numpy.zeros((n,3))
-    for i in range(n):
-        w = fxyz.readline().split()[1:]
-        w = [float(x) for x in w]
-        xyz[i] = w
-
-    '''
-    from ase.cluster.icosahedron import Icosahedron
-    atoms = Icosahedron('Cu', noshells=3)
-
-    xyz = atoms.get_positions()
-    summary_dict = delaunator(xyz, 4.5)
-    #print(summary_dict)

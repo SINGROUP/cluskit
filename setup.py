@@ -15,7 +15,7 @@ if __name__=="__main__":
       packages = find_packages(),
       install_requires =["numpy>=1.14.2",
       "scipy",
-      "dscribe==0.2.3",
+      "dscribe>=0.2.7",
       "ase",]
       , python_requires='>=2.2, <4', keywords="descriptor materials science machine learning soap local environment materials physics symmetry reduction adsorption sites",
       license="LGPLv3", classifiers=['Topic :: Scientific/Engineering :: Physics', 'Operating System :: POSIX :: Linux' ,'Topic :: Scientific/Engineering :: Chemistry','Topic :: Scientific/Engineering :: Artificial Intelligence','License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)', 'Development Status :: 4 - Beta', 'Intended Audience :: Science/Research','Intended Audience :: Religion', 'Intended Audience :: Education','Intended Audience :: Developers','Programming Language :: Python','Programming Language :: C' ],

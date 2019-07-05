@@ -15,8 +15,6 @@ from scipy.spatial import Voronoi
 import random
 import time
 import dscribe
-from dscribe.descriptors import SOAP
-from dscribe import utils
 from ase.visualize import view
 import copy
 
@@ -338,7 +336,7 @@ class Scaffold(ase.Atoms):
             atomic_numbers = np.array(atomic_numbers) + 1
 
         self.descriptor_setup = dscribe.descriptors.SOAP(
-            atomic_numbers=atomic_numbers,
+            species=atomic_numbers,
             periodic=False,
             rcut=5.0,
             nmax=8,

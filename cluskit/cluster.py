@@ -5,7 +5,7 @@ from ctypes import *
 from scipy.spatial.distance import cdist, squareform, pdist
 from cluskit.delaunay import delaunator
 import cluskit.utils
-import dscribe
+import dscribe, dscribe.descriptors
 
 def _fps(pts, K, greedy=False):
     """Helper function farthest point sampling to
@@ -253,7 +253,7 @@ class Cluster(ase.Atoms):
         # setting standard descriptor
         atomic_numbers = sorted(list(set(self.get_atomic_numbers())))
         self.descriptor_setup = dscribe.descriptors.SOAP(
-            atomic_numbers=atomic_numbers,
+            species=atomic_numbers,
             periodic=False,
             rcut=5.0,
             nmax=8,

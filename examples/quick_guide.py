@@ -20,7 +20,7 @@ scaffold = cluskit.build.get_scaffold(shape = "ico", i = 3, latticeconstant = 3.
 
 # necessary to setup descriptor first
 scaffold.descriptor_setup = dscribe.descriptors.SOAP(
-    atomic_numbers=[28, 78],
+    species=[28, 78],
     periodic=False,
     rcut=5.0,
     nmax=8,

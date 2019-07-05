@@ -47,7 +47,7 @@ scaffold = get_scaffold(shape = "ico", i = 3, latticeconstant = 3.0,
 
 # setup descriptor
 scaffold_from_ase.descriptor_setup = dscribe.descriptors.SOAP(
-    atomic_numbers=[28, 78],
+    species=[28, 78],
     periodic=False,
     rcut=5.0,
     nmax=8,
@@ -57,7 +57,7 @@ scaffold_from_ase.descriptor_setup = dscribe.descriptors.SOAP(
 )
 
 scaffold.descriptor_setup = dscribe.descriptors.SOAP(
-    atomic_numbers=[28, 78],
+    species=[28, 78],
     periodic=False,
     rcut=5.0,
     nmax=8,

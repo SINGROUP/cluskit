@@ -524,6 +524,53 @@ def _get_all_dihedrals(atoms, angles):
                     dihedrals.append([value, dihedral])
     return dihedrals
 
+def _get_reduced_dihedrals(atoms, nb_lst, nl):
+    """Helper function for place_and_preoptimize_adsorbates
+    
+    Args:
+        atoms (ase.Atoms)   :   adsorbate molecule
+        angles (list)  :    tuples of angles, indices 
+                            within the molecule
+
+    Returns:
+        list :      maximum constrainable dihedrals which 
+                    can be constructed from two angles
+    """
+    dihedrals = []
+    for pair in nb_lst:
+        a1, a2 = pair[0], pair[1]
+        nb1, _ = nl.get_neighbors(a1)
+        nb2, _ = nl.get_neighbors(a2)
+        count = 0
+        for i in nb1:
+            for j in nb2:
+                if (i == a2) or (j == a1):
+                    pass
+                else:
+                    dihedral = [i, a1, a2, j]
+                    if len(set(dihedral)) != 4:
+                        pass
+                    elif count < 3:
+                        # check for intersection
+                        is_exclude = False
+                        for _, dh in dihedrals:
+                            intersection = set(dihedral) & set(dh)
+                            if len(intersection) < 3:
+                                pass
+                            elif (dihedral[:-1] == dh[:-1]) or dihedral[1:] == dh[1:]:
+                                pass
+                            else:
+                                is_exclude = True
+                        if is_exclude == False:
+                            value = atoms.get_dihedral(*dihedral) * np.pi / 180
+                            dihedrals.append([value, dihedral])
+                            count +=1
+                    else:
+                        pass
+    return dihedrals
+
+
+
 def _constrain_molecule(atoms, rattle=0.00001):
     """Helper function for place_and_preoptimize_adsorbates
     
@@ -576,6 +623,132 @@ def _hookean_bonds(atoms, nb_lst):
     return hookean_lst
 
 
+def _find_nearest_atom_to_x(atoms, nl):
+    """Helper function for place_and_preoptimize_adsorbates
+
+    Finds the index of the atom closest to the dummy atom
+    X.
+
+    Args:
+        atoms (ase.Atoms)   :   adsorbate molecule
+        nl (ase.neighborlist.NeighborList)  : neighborlist object
+
+    Returns:
+        list :      index of the dummy atom and the atom closest
+                    to it
+    """
+    x_idx = [atom.index for atom in atoms if atom.symbol == 'X'][0]
+    first_atom, offset = nl.get_neighbors(x_idx)
+    return [x_idx, first_atom]
+
+def _find_constraints_molecule(atoms, rattle = 0.0001):
+    """Helper function for place_and_preoptimize_adsorbates
+    
+    Args:
+        atoms (ase.Atoms)   :   adsorbate molecule
+        rattle (float)  :   standard deviation of the structure rattling
+
+    Returns:
+        list :      list of different bonds, angles and dihedrals 
+                    other than those of sp3-centers, and redundant ones
+    """
+    # Rattling is important, otherwise the optimization fails!
+    atoms.rattle(stdev=rattle)
+
+    nb_lst, nl = _get_neighbours(atoms, buffer_factor=1.5)
+    bonds = [(atoms.get_distance(indices[0], indices[1]), indices) for indices in nb_lst]
+    rigid_atoms = _find_nearest_atom_to_x(atoms, nl)
+
+    angles = _get_all_angles(atoms, nb_lst)
+    dihedrals = _get_reduced_dihedrals(atoms, nb_lst, nl)
+    # keep dihedrals with sp2 or sp center
+    # use neighbor list and a custom dictionary for number of nearest neighbors
+    dihedrals = _filter_dihedrals(atoms, nl, dihedrals)
+
+    hookean_lst = _hookean_bonds(atoms, nb_lst)
+    return rigid_atoms, bonds, angles, dihedrals, hookean_lst
+
+def _shift_constraints(shift, rigid_atoms, bonds, angles, dihedrals, hookean_lst):
+    """Helper function for place_and_preoptimize_adsorbates
+    
+    Args:
+        shift (int)         :   constant by which to shift the atom indices
+        rigid_atoms (list)  :   indices of atoms to be fixed
+        bonds (list)        :   each element contains a tuple of bondlength and atom indices
+        angles (list)       :   each element contains a tuple of angle and atom indices
+        dihedrals (list)    :   each element contains a tuple of dihedral and atom indices
+        hookean_lst (list)  :   ase.constraints.Hookean bond constraints
+
+    Returns:
+        tuple :     All indices of rigid_atoms, bonds, angles, dihedrals and hookean_lst are
+                    shifted by shift
+    """
+    new_rigid_atoms = []
+    new_bonds = []
+    new_angles = []
+    new_dihedrals = []
+    new_hookean_lst = []
+
+    for rigid_atom in rigid_atoms:
+        new_rigid_atoms.append(rigid_atom + shift)
+    for value, bond in bonds:
+        new_bonds.append([value, [bond[0]+shift, bond[1]+shift]])
+        c = Hookean(a1=int(bond[0]) + shift, a2=int(bond[1]) + shift,
+                rt=value, k=200.)
+        new_hookean_lst.append(c)
+    for value, angle in angles:
+        new_angles.append([value, [angle[0]+shift,angle[1]+shift,angle[2]+shift]])
+    for value, dihedral in dihedrals:
+        new_dihedrals.append([value, [dihedral[0]+shift,dihedral[1]+shift,dihedral[2]+shift, dihedral[3]+shift ]])
+
+    return new_rigid_atoms, new_bonds, new_angles, new_dihedrals, new_hookean_lst
+
+
+def _copy_and_set_constraints(atoms, n_atoms_per_molecule, rigid_atoms, 
+    bonds, angles, dihedrals, hookean_lst):
+    """Helper function for place_and_preoptimize_adsorbates
+    
+    Args:
+        atoms (ase.Atoms)   :   conglomerate of adsorbate molecules
+        n_atoms_per_molecule (int)  : number of atoms per single molecule
+        rigid_atoms (list)  :   indices of atoms to be fixed
+        bonds (list)        :   each element contains a tuple of bondlength and atom indices
+        angles (list)       :   each element contains a tuple of angle and atom indices
+        dihedrals (list)    :   each element contains a tuple of dihedral and atom indices
+        hookean_lst (list)  :   ase.constraints.Hookean bond constraints
+
+    Returns:
+        tuple :     All indices of rigid_atoms, bonds, angles, dihedrals and hookean_lst are
+                    shifted by shift
+    """
+    n_adsorbates = int(len(atoms) / n_atoms_per_molecule)
+
+    all_rigid_atoms = []
+    all_bonds = []
+    all_hookeans = []
+    all_angles = []
+    all_dihedrals = []
+    for i in range(n_adsorbates):
+        shift = i * n_atoms_per_molecule
+        new_rigid_atoms, new_bonds, new_angles, new_dihedrals, new_hookean_lst = _shift_constraints(shift,
+            rigid_atoms, bonds, angles, dihedrals, hookean_lst)
+        all_rigid_atoms.extend(new_rigid_atoms)
+        all_bonds.extend(new_bonds)
+        all_angles.extend(new_angles)
+        all_dihedrals.extend(new_dihedrals)
+        all_hookeans.extend(new_hookean_lst)
+
+    # too heavy!!!
+    #fi = FixInternals(angles=all_angles, dihedrals=all_dihedrals, bonds=all_bonds, epsilon=1e-7)
+    fi = FixInternals(angles=angles, dihedrals=dihedrals, bonds=bonds, epsilon=1e-7)
+
+    fa = FixAtoms(all_rigid_atoms)
+
+    # IMPORTANT! fix binding atom at the end, otherwise it moves!
+    #atoms.set_constraint(hookean_lst.extend([fi, fa]))
+    atoms.set_constraint([fi, fa])
+    return atoms
+
 def place_and_preoptimize_adsorbates(cluster, molecule, sitetype = -1, max_distance = 3.5,
     n_remaining = 100, is_reduce = True, is_reset = False, n_lj_steps = 100):
     """
@@ -615,22 +788,29 @@ def place_and_preoptimize_adsorbates(cluster, molecule, sitetype = -1, max_dista
                 the cluster
     """
     # set constraints in molecule
-    molecule = _constrain_molecule(molecule, rattle=0.00001)
+    #molecule = constrain_molecule(molecule, rattle=0.00001)
     n_atoms_per_molecule = len(molecule)
+    rigid_atoms, bonds, angles, dihedrals, hookean_lst = _find_constraints_molecule(molecule, rattle=0.0001)
+
 
     # make a whole bunch of adsorbates on the surface of a nanocluster
     # initial guess orientation
-    adsorbates = cluster.place_adsorbates(molecule, sitetype=sitetype, remove_x = False)
+    adsorbates = cluster.place_adsorbates(molecule, sitetype = sitetype, remove_x =False)
     combined_adsorbates = adsorbates[0]
     for ads in adsorbates[1:]:
         combined_adsorbates += ads
 
     atoms = combined_adsorbates
 
+    # set constraints at once to all molecules
+    atoms = _copy_and_set_constraints(atoms, n_atoms_per_molecule, 
+        rigid_atoms, bonds, angles, dihedrals, hookean_lst,)
     # loop
     for z in range(10000):
         # save initial placement
         initial_adsorbates = copy.deepcopy(atoms)
+        atoms = _copy_and_set_constraints(atoms, n_atoms_per_molecule, 
+            rigid_atoms, bonds, angles, dihedrals, hookean_lst)
         pos_initial = atoms.get_positions()
 
         ## Optimize structure
@@ -641,13 +821,13 @@ def place_and_preoptimize_adsorbates(cluster, molecule, sitetype = -1, max_dista
         dyn.run(fmax=0.1, steps=n_lj_steps)
 
         pos_final = atoms.get_positions()
-        #print(pos_final - pos_initial)
 
         # compute distances
         n_adsorbates = int(len(atoms) / n_atoms_per_molecule)
         print("number of adsorbates:", n_adsorbates)
 
         if is_reduce == False:
+            #view(atoms)
             break
 
         min_dist = 10000.0
@@ -695,13 +875,16 @@ def place_and_preoptimize_adsorbates(cluster, molecule, sitetype = -1, max_dista
             mask = np.ones(len(initial_adsorbates), dtype=bool)
             mask[ads_idx*n_atoms_per_molecule:(ads_idx+1)*n_atoms_per_molecule] = 0
             if is_reset:
+                del initial_adsorbates.constraints
                 atoms = initial_adsorbates[mask]
             else:
+                del atoms.constraints
                 atoms = atoms[mask]
         ## end loop
 
     # remove x's
     adsorbate_lst = []
+    del atoms.constraints
     for i in range(n_adsorbates):
         adsorbate_x = atoms[i*n_atoms_per_molecule:(i+1)*n_atoms_per_molecule]
         x_idx = [atom.index for atom in adsorbate_x if atom.symbol == 'X'][0]
@@ -709,3 +892,4 @@ def place_and_preoptimize_adsorbates(cluster, molecule, sitetype = -1, max_dista
         adsorbate = adsorbate_x
         adsorbate_lst.append(adsorbate)
     return adsorbate_lst
+

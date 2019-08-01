@@ -12,6 +12,7 @@ import unittest
 # Import the test modules
 import generaltests
 import cluster
+import support
 import build
 import testexamples
 

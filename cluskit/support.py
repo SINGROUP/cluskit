@@ -3,7 +3,7 @@ import ase, ase.io
 import os, argparse, glob
 from ctypes import *
 from scipy.spatial.distance import cdist, squareform, pdist
-from cluskit.delaunay import delaunator
+from cluskit.delaunay import periodic_delaunator
 import cluskit.utils
 import dscribe, dscribe.descriptors
 
@@ -183,15 +183,17 @@ def _average_minimum_distance(positions):
     avemin = minimums.mean()
     return avemin
 
-class Cluster(ase.Atoms):
+
+
+class Support(ase.Atoms):
     """ A child class of the ase.Atoms object. 
-    It is a nanocluster class with additional methods and attributes, 
+    It is a periodic slab support class with additional methods and attributes, 
     built for the detection and classification of surfaces and adsorption sites. 
 
     Args:
 
     Returns:
-        cluskit.Cluster : cluster object
+        cluskit.Support : Support object
     """
 
     def __init__(self, symbols=None,
@@ -203,13 +205,14 @@ class Cluster(ase.Atoms):
                 constraint=None,
                 calculator=None,
                 info=None,
-                surface=None):
+                surface=None,
+                max_bondlength=None):
         """Upon initialization, the surface is defined using the
         delaunay algorithm. Other attributes get defaults such
         as self.descriptor_setup = SOAP, they can be overwritten
         afterwards.
         """
-        self.ase_object = super(Cluster, self).__init__(symbols=symbols,
+        self.ase_object = super(Support, self).__init__(symbols=symbols,
                     positions=positions, numbers=numbers,
                     tags=tags, momenta=momenta, masses=masses,
                     magmoms=magmoms, charges=charges,
@@ -233,7 +236,10 @@ class Cluster(ase.Atoms):
         self.adsorption_vectors = {}
 
         # empiric multiplier, used for determining surface atoms
-        self.max_bondlength = _average_minimum_distance(self.positions) * 1.7
+        if not max_bondlength:
+            self.max_bondlength = _average_minimum_distance(self.positions) * 1.7
+        else:
+            self.max_bondlength = max_bondlength
 
         if surface is not None:
             if isinstance(surface[0], bool) or isinstance(surface[0], np.bool_):
@@ -246,7 +252,7 @@ class Cluster(ase.Atoms):
             _ = self.get_surface_atoms()
 
         self.site_positions = {}
-        self.cluster_descriptor = None
+        self.slab_descriptor = None
         self.sites_descriptor = {}
         self.surface_atoms = self.arrays['surface']
 
@@ -254,7 +260,7 @@ class Cluster(ase.Atoms):
         atomic_numbers = sorted(list(set(self.get_atomic_numbers())))
         self.descriptor_setup = dscribe.descriptors.SOAP(
             species=atomic_numbers,
-            periodic=False,
+            periodic=True,
             rcut=5.0,
             nmax=8,
             lmax=6,
@@ -262,12 +268,16 @@ class Cluster(ase.Atoms):
             )
 
 
+
+
     def get_surface_atoms(self, mask=False):
-        """Determines the surface atoms of the nanocluster using delaunay
+        """Determines the surface atoms of the slab using delaunay
         triangulation.
         A maximum bondlength determining how concave a surface can be can be 
         adjusted in the attribute self.max_bondlength
         (the default usually works well).
+        ATTENTION: Do not use too small cells in x and y as the Delaunay
+        algorithm may fail!
 
         The attributes
         -self.zero_site_positions
@@ -293,7 +303,8 @@ class Cluster(ase.Atoms):
         pos = self.get_positions()
 
         # delaunator not only gets surface atoms but also adsorption site locations
-        summary_dict = delaunator(pos, self.max_bondlength)
+        
+        summary_dict = periodic_delaunator(pos, self.cell, self.max_bondlength)
 
         ids_surface_atoms = summary_dict["ids_surface_atoms"]
         
@@ -320,7 +331,7 @@ class Cluster(ase.Atoms):
             return ids_surface_atoms
 
     def get_nonsurface_atoms(self):
-        """ Determines the core / non-surface atoms of the nanocluster. 
+        """ Determines the core / non-surface atoms of the slab. 
         A maximum bondlength determining how concave a surface can be can be adjusted
         in the attribute self.max_bondlength    
         (the default usually works well).
@@ -332,6 +343,105 @@ class Cluster(ase.Atoms):
         """
         surface = self.get_surface_atoms(mask=True)
         return np.nonzero(np.logical_not(surface))[0]
+
+
+    def reduce_surface_atoms(self, z_direction, z_cut = None):
+        if z_cut:
+            pos = self.ase_object.get_positions()
+            ids_surface_atoms = self.surface_atoms
+            if (z_direction == 1) or (z_direction == "top"):
+                surface_atoms = ids_surface_atoms[pos[ids_surface_atoms,2] > z_cut]
+            elif (z_direction == -1) or (z_direction == "bottom"):
+                surface_atoms = ids_surface_atoms[pos[ids_surface_atoms,2] < z_cut]
+            else:
+                print("z_direction not understood. Use -1 or 1, alternatively top or bottom")
+                exit(1)
+            mask = np.isin(ids_surface_atoms, surface_atoms)
+            self.site_surface_atom_ids[1] = self.site_surface_atom_ids[1][mask]
+            self.zero_site_positions[1] =  self.zero_site_positions[1][mask]
+            self.adsorption_vectors[1] = self.adsorption_vectors[1][mask] 
+            
+            mask = np.isin(self.site_surface_atom_ids[2][:, 0], surface_atoms)
+            self.site_surface_atom_ids[2] = self.site_surface_atom_ids[2][mask] 
+            self.zero_site_positions[2] = self.zero_site_positions[2][mask]
+            self.adsorption_vectors[2] = self.adsorption_vectors[2][mask] 
+            
+            mask = np.isin(self.site_surface_atom_ids[3][:, 0], surface_atoms)
+            self.site_surface_atom_ids[3] = self.site_surface_atom_ids[3][mask]
+            self.zero_site_positions[3] = self.zero_site_positions[3][mask] 
+            self.adsorption_vectors[3] = self.adsorption_vectors[3][mask]
+
+            return surface_atoms
+
+        dmat = self.ase_object.get_all_distances(mic=True, vector=False)
+        pos = self.ase_object.get_positions()
+        ids_surface_atoms = self.surface_atoms
+        surface_atoms = ids_surface_atoms.copy()
+        surf_dmat = dmat[surface_atoms, :][: , surface_atoms]
+
+        seeds = np.unravel_index(surf_dmat.argmax(), surf_dmat.shape)
+        seeds = surface_atoms[np.array(seeds)]
+        sortids = np.argsort(pos[np.array(seeds, dtype=int),2])
+        seeds = np.array(seeds)[sortids]
+        top_seed, bottom_seed = seeds[0], seeds[1]
+
+        tops = [top_seed]
+        bottoms = [bottom_seed]
+
+        topids = np.argsort(dmat[top_seed, surface_atoms])
+        bottomids = np.argsort(dmat[bottom_seed, surface_atoms])
+        topids = surface_atoms[topids]
+        bottomids = surface_atoms[bottomids]
+
+        sorted_surface_atoms = []
+        for top_id, bottom_id in zip(topids, bottomids):
+            if top_id in sorted_surface_atoms:
+                pass
+            else:
+                sorted_surface_atoms.append(top_id)
+            if bottom_id in sorted_surface_atoms:
+                pass
+            else:
+                sorted_surface_atoms.append(bottom_id)
+
+        sorted_surface_atoms = np.array(sorted_surface_atoms, dtype = int)
+
+        for surface_atom in sorted_surface_atoms:
+            if (surface_atom in tops) or (surface_atom in bottoms): continue
+
+            if dmat[surface_atom, np.array(tops, dtype = int)].mean() < dmat[surface_atom, np.array(bottoms, dtype = int)].mean():
+                tops.append(surface_atom)
+            else:
+                bottoms.append(surface_atom)
+
+        if (z_direction == 1) or (z_direction == "top"):
+            surface_atoms = np.array(tops)
+        elif (z_direction == -1) or (z_direction == "bottom"):
+            surface_atoms = np.array(bottoms)
+        else:
+            print("z_direction not understood. Use -1 or 1, alternatively top or bottom")
+            exit(1)
+
+        self.arrays['surface'] = surface_atoms
+
+        mask = np.isin(ids_surface_atoms, surface_atoms)
+        self.site_surface_atom_ids[1] = self.site_surface_atom_ids[1][mask]
+        self.zero_site_positions[1] =  self.zero_site_positions[1][mask]
+        self.adsorption_vectors[1] = self.adsorption_vectors[1][mask] 
+        
+        mask = np.isin(self.site_surface_atom_ids[2][:, 0], surface_atoms)
+        self.site_surface_atom_ids[2] = self.site_surface_atom_ids[2][mask] 
+        self.zero_site_positions[2] = self.zero_site_positions[2][mask]
+        self.adsorption_vectors[2] = self.adsorption_vectors[2][mask] 
+        
+        mask = np.isin(self.site_surface_atom_ids[3][:, 0], surface_atoms)
+        self.site_surface_atom_ids[3] = self.site_surface_atom_ids[3][mask]
+        self.zero_site_positions[3] = self.zero_site_positions[3][mask] 
+        self.adsorption_vectors[3] = self.adsorption_vectors[3][mask]
+
+        return surface_atoms
+
+
 
     def _compute_adsorbate_positions(self, sitetype, distance=1.8):
         """Helper function to determine the location of adsorbates on a given
@@ -362,7 +472,7 @@ class Cluster(ase.Atoms):
 
 
     def get_sites(self, sitetype=-1,  distance= 1.8):
-        """This method gets top, bridge or hollow adsorption sites on the nanocluster.
+        """This method gets top, bridge or hollow adsorption sites on the slab surface.
         
         The adsorbates will be placed away from the zerosite, in the direction 
         of the adsorption vectors.
@@ -453,7 +563,7 @@ class Cluster(ase.Atoms):
     def find_closest_site(self, position):
         """Takes a point in space as input.
         Returns the sitetype and the index of the closest site 
-        of the cluster. (Had to be stored previously)
+        of the slab. (Had to be stored previously)
 
         In order to influence the distance to the zerosite, call self.get_sites()
         with the desired distance
@@ -495,7 +605,7 @@ class Cluster(ase.Atoms):
     def place_adsorbates(self, molecule, sitetype = -1, remove_x = True):
         """
         This method places an adsorbate (ase object containing X dummy atom) onto top, 
-        bridge and/or hollow adsorption sites on the nanocluster.
+        bridge and/or hollow adsorption sites on the slab surface.
 
         Returns a 2D-array of top, bridge, and/or hollow site positions with the 
         defined distance from the adsorbing surface atom(s).
@@ -535,7 +645,7 @@ class Cluster(ase.Atoms):
         return adsorbate_lst
 
 
-    def get_cluster_descriptor(self, only_surface = False):
+    def get_slab_descriptor(self, only_surface = False):
         """Takes a boolean only_surface as input, 
         and optionally a maximum bondlength which defines how concave the surface can be.
         Returns a 2D array with a descriptor (default is SOAP) feature vector on a 
@@ -548,17 +658,17 @@ class Cluster(ase.Atoms):
 
         Returns:
             2D ndarray :    descriptor matrix of all atoms (or only surface atoms)
-                            of the nanocluster
+                            of the slab
         """
         desc = self.descriptor_setup
         descmatrix = desc.create(self.ase_object)
-        self.cluster_descriptor = descmatrix
+        self.slab_descriptor = descmatrix
         if only_surface == True:
             surfid = self.get_surface_atoms()
             descmatrix = descmatrix[surfid]
             return descmatrix
         else:
-            return self.cluster_descriptor
+            return self.slab_descriptor
 
 
     def get_sites_descriptor(self, sitetype = -1):
@@ -664,19 +774,19 @@ class Cluster(ase.Atoms):
         return ranked_ids
 
 
-    def get_unique_cluster_atoms(self, threshold = 0.001, idx=[]):
+    def get_unique_slab_atoms(self, threshold = 0.001, idx=[]):
         """Method similar to .get_unique_sites(). Takes a threshold (float) 
         of uniqueness and optionally a list of indices as input.
-        Returns a list of indices of the unique cluster atoms.
+        Returns a list of indices of the unique slab atoms.
 
         Args:
             threshold (float) :     empirical parameter to define uniqueness
             idx (1D ndarray) :  custom indices to translate the unique indices to
 
         Returns:
-            1D ndarray : indices of the unique cluster atoms.
+            1D ndarray : indices of the unique slab atoms.
         """
-        descmatrix = self.cluster_descriptor
+        descmatrix = self.slab_descriptor
     
         descmatrix = _constrain_descmatrix_to_selected_ids(descmatrix, idx)
 
@@ -685,3 +795,40 @@ class Cluster(ase.Atoms):
         unique_ids = _translate_to_selected_ids(unique_ids, idx)
 
         return unique_ids
+
+
+
+
+
+
+if __name__ == '__main__':
+    import ase
+    from ase.build import fcc111
+    slab = fcc111('Al', size=(3,3,3), vacuum=10.0)
+    slab = ase.build.bcc100('Fe', size=(3,3,3), vacuum=10.0)
+    #diamond = ase.build.diamond111('C', size = (3,3,6), a=None, vacuum=8.0, orthogonal=False, periodic=True)
+    #slab = diamond
+    print(slab.get_cell())
+    print(len(slab))
+    sup = Support(slab)
+    #sup = Support(slab, max_bondlength = 2.7)
+    #sup.max_bondlength = 2.3
+    sa = sup.get_surface_atoms()
+    print("surface atoms", sa)
+    print("surface atoms", len(sa))
+
+    print(sup.adsorption_vectors[1].shape,
+        sup.adsorption_vectors[2].shape,
+        sup.adsorption_vectors[3].shape)
+    reduced_surface_atoms = sup.reduce_surface_atoms(z_direction = 1, z_cut =11.0)
+    print(reduced_surface_atoms, len(reduced_surface_atoms))
+    print("reduced_surface_atoms")
+    print(sup.adsorption_vectors[1].shape,
+        sup.adsorption_vectors[2].shape,
+        sup.adsorption_vectors[3].shape)
+
+    from ase.visualize import view
+    view(slab[reduced_surface_atoms])
+    view(slab[sa])
+    view(slab)
+    ase.io.write("structure.xyz", slab)

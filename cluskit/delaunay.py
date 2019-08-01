@@ -1,6 +1,7 @@
 import numpy
 from itertools import combinations
 from ase.geometry import find_mic 
+import ase
 
 def mic(D, cell):
     Dmic, D_len = find_mic(D.reshape(-1, 3), cell)
